@@ -1,0 +1,141 @@
+---
+  AWSTemplateFormatVersion: "2010-09-09"
+  Description: "Control Architecture for allocating and managing Online Trials"
+  Parameters:
+    Stage:
+      Type: String
+      Description: The stage we are deploying to; either test or prod.
+      ConstraintDescription: Must be either test or prod
+      Default: test
+      AllowedPattern: "(\\btest\\b|\\bprod\\b)"
+      MinLength: 4
+      MaxLength: 4
+    URI:
+      Type: String
+      Description: The URI that all requests for trials will be made to.
+      Default: online-trial
+      MinLength: 4
+  Resources:
+    OnlineTrialRequestAPI:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Description: API that consumes requests for Online Trial stacks
+        Name: OnlineTrialAPI
+    OnlineTrialRequestResource:
+      Type: AWS::ApiGateway::Resource
+      DependsOn:
+       - OnlineTrialRequestAPI
+      Properties:
+        ParentId: !GetAtt OnlineTrialRequestAPI.RootResourceId
+        PathPart: !Ref URI
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestGetMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        ApiKeyRequired: true
+        AuthorizationType: NONE
+        HttpMethod: GET
+        Integration: 
+          Type: MOCK # Needs to change to Lambda
+        ResourceId: !Ref OnlineTrialRequestResource
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestPostMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        ApiKeyRequired: true
+        AuthorizationType: NONE
+        HttpMethod: POST
+        Integration: 
+          Type: MOCK # Needs to change to Lambda
+        ResourceId: !Ref OnlineTrialRequestResource
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestDeployment:
+      Type: AWS::ApiGateway::Deployment
+      DependsOn:
+        - OnlineTrialRequestGetMethod
+        - OnlineTrialRequestPostMethod
+      Properties:
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestStage:
+      Type: AWS::ApiGateway::Stage
+      DependsOn:
+        - OnlineTrialRequestAPI
+        - OnlineTrialRequestDeployment
+      Properties:
+        DeploymentId: !Ref OnlineTrialRequestDeployment
+        MethodSettings:
+          - DataTraceEnabled: true
+            HttpMethod: "*"
+            LoggingLevel: INFO
+            MetricsEnabled: true
+            ResourcePath: "/*"
+        RestApiId: !Ref OnlineTrialRequestAPI
+        StageName: !Ref Stage
+    OnlineTrialRequestApiKey:
+      Type: AWS::ApiGateway::ApiKey
+      DependsOn:
+       - OnlineTrialRequestDeployment
+       - OnlineTrialRequestStage
+      Properties:
+        # By not specifying a name, it allows this resource to be upgradeable
+        Description: Used to secure access to our Online Trial APIs
+        Enabled: true
+        StageKeys:
+          - RestApiId: !Ref OnlineTrialRequestAPI
+            StageName: !Ref Stage
+    OnlineTrialRequestUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      DependsOn:
+        - OnlineTrialRequestAPI
+        - OnlineTrialRequestStage
+      Properties:
+        ApiStages:
+          - ApiId: !Ref OnlineTrialRequestAPI
+            Stage: !Ref Stage
+        Description: Online Trial Usage Plan
+        Quota:
+          Limit: 500
+          Period: MONTH
+        UsagePlanName: Plan_Online_Trials
+    OnlineTrialRequestCloudWatchLogsRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: ApiGatewayLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:DescribeLogGroups
+                    - logs:DescribeLogStreams
+                    - logs:PutLogEvents
+                    - logs:GetLogEvents
+                    - logs:FilterLogEvents
+                  Resource: "*"
+    OnlineTrialRequestAccount:
+      Type: AWS::ApiGateway::Account
+      DependsOn:
+        - OnlineTrialRequestCloudWatchLogsRole
+      Properties:
+        CloudWatchRoleArn: !GetAtt OnlineTrialRequestCloudWatchLogsRole.Arn
+  Outputs:
+    OnlineTrialsRequestEndPoint:
+      Description: The URI to test the request of a trial stack
+      Value: !Sub "https://${OnlineTrialRequestAPI}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/${URI}"
+
+# Current Manual steps required:
+#
+# - Once this stack is deployed, you must associate the created api key with the usage plan
+# - When deleting a stack, the usage plans need to be deleted manually
