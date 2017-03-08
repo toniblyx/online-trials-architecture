@@ -12,7 +12,7 @@ source common.func
 # Essential Variables
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2
-STACK_NAME=$(echo -n $3 | tr / - | awk '{print tolower($0)}')
+STACK_NAME="online-trial-control-test"
 
 # We need to create a change set for the current stack, describe the change set and check the response for the "STATUS"
 # if the status was "FAILED" this was because there we no changes to execute, so we delete the change set then exit early
