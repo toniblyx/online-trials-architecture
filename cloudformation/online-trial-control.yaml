@@ -1,5 +1,5 @@
 ---
-  AWSTemplateFormatVersion: "2010-09-09"
+  AWSTemplateFormatVersion: 2010-09-09
   Description: "Control Architecture for allocating and managing Online Trials"
   Parameters:
     Stage:
@@ -29,24 +29,139 @@
         ParentId: !GetAtt OnlineTrialRequestAPI.RootResourceId
         PathPart: !Ref URI
         RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestHandlerIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                    - logs:DescribeLogStreams
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource:
+                    - "*"
+    OnlineTrialRequestHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialRequestHandlerIamRole
+      Properties:
+        # FunctionName not supplied to allow update of this resource
+        # Code wont be inline, it will refer to a file in an s3 bucket once written
+        Code:
+          ZipFile: > 
+            exports.handler = (event, context, callback) => {
+              // TODO implement and deploy in s3 bucket
+              const message = JSON.parse(event.Records[0].Sns.Message);
+              console.log(message);
+              callback(null, 'Hello from Lambda');
+            };
+        # Environment:
+          # Variables:
+            # sqs_queue_url: once we have created the queue pass the url here
+        Handler: index.handler # this will need changing once we switch to Lambda
+        Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
+        Runtime: nodejs4.3 # Change to python when we start writing the code
+        Timeout: 10
+    OnlineTrialRequestSNSTopic:
+      Type: AWS::SNS::Topic
+      DependsOn:
+        - OnlineTrialRequestHandler
+      Properties:
+        DisplayName: Online Trials SNS Topic for requests
+        # TopicName left blank. Makes this resource upgradeable
+        Subscription:
+          - Endpoint: !GetAtt OnlineTrialRequestHandler.Arn
+            Protocol: lambda
+    OnlineTrialRequestHandlerInvokePermission:
+        Type: AWS::Lambda::Permission
+        DependsOn:
+          - OnlineTrialRequestHandler
+          - OnlineTrialRequestSNSTopic
+        Properties:
+          Action: lambda:InvokeFunction
+          FunctionName: !Ref OnlineTrialRequestHandler
+          Principal: sns.amazonaws.com
+          SourceArn: !Ref OnlineTrialRequestSNSTopic
+    OnlineTrialRequestProxyExecRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestSNSTopic
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: APIGatewayAWSProxyExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource:
+                    - !Ref OnlineTrialRequestSNSTopic
     OnlineTrialRequestGetMethod:
       Type: AWS::ApiGateway::Method
       Properties:
         ApiKeyRequired: true
         AuthorizationType: NONE
         HttpMethod: GET
-        Integration: 
-          Type: MOCK # Needs to change to Lambda
+        Integration:
+          Type: MOCK
         ResourceId: !Ref OnlineTrialRequestResource
         RestApiId: !Ref OnlineTrialRequestAPI
     OnlineTrialRequestPostMethod:
       Type: AWS::ApiGateway::Method
+      DependsOn:
+        - OnlineTrialRequestProxyExecRole
       Properties:
         ApiKeyRequired: true
         AuthorizationType: NONE
         HttpMethod: POST
-        Integration: 
-          Type: MOCK # Needs to change to Lambda
+        MethodResponses:
+          - StatusCode: 200
+        Integration:
+          Credentials: !GetAtt OnlineTrialRequestProxyExecRole.Arn
+          IntegrationHttpMethod: POST
+          IntegrationResponses:
+            - ResponseTemplates:
+                application/json: "#set($inputRoot = $input.path('$')) { }"
+              StatusCode: 200
+          RequestParameters:
+            integration.request.querystring.Message: 'method.request.body'
+            integration.request.querystring.TopicArn: 'method.request.querystring.TopicArn'
+          Type: AWS
+          Uri: !Sub "arn:aws:apigateway:${AWS::Region}:sns:action/Publish"
+        RequestParameters:
+          method.request.querystring.Message: true
+          method.request.querystring.TopicArn: true
         ResourceId: !Ref OnlineTrialRequestResource
         RestApiId: !Ref OnlineTrialRequestAPI
     OnlineTrialRequestDeployment:
@@ -118,12 +233,18 @@
                   Action:
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
-                    - logs:DescribeLogGroups
                     - logs:DescribeLogStreams
                     - logs:PutLogEvents
-                    - logs:GetLogEvents
-                    - logs:FilterLogEvents
-                  Resource: "*"
+                  Resource: "arn:aws:logs:*:*:*"
+          - PolicyName: APIGatewayAWSProxyExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sns:*
+                  Resource:
+                    - "*"
     OnlineTrialRequestAccount:
       Type: AWS::ApiGateway::Account
       DependsOn:
@@ -138,4 +259,4 @@
 # Current Manual steps required:
 #
 # - Once this stack is deployed, you must associate the created api key with the usage plan
-# - When deleting a stack, the usage plans need to be deleted manually
+# - When deleting a stack, the usage plan needs to be deleted manually. Make sure its the correct one
