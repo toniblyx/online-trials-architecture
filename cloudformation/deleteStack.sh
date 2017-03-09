@@ -23,8 +23,8 @@ export AWS_SECRET_ACCESS_KEY=$2
 # Temp workaround until bug fix
 separator
 USAGE_PLAN_ID=$(aws cloudformation describe-stack-resources \
- --stack-name $STACK_NAME 
- --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId"
+ --stack-name $STACK_NAME \
+ --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId" \ß
  --output text)
 logInfo "Usage plan ID is $USAGE_PLAN_ID"
 
