@@ -15,7 +15,7 @@ usage() {
 if [ $# -lt 3 ]; then
   usage
 else
-  source common.func
+  source ./common.func
   TEMPLATE_NAME="online-trial-control.yaml"
   S3_TEMPLATE_NAME="$3.yaml"
   STACK_NAME=$(echo -n $3 | tr / - | awk '{print tolower($0)}')
