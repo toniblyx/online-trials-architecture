@@ -34,6 +34,48 @@
       Properties:
         MessageRetentionPeriod: 86400 # 24 hours
         # QueueName omitted so this resource can be updated
+    OnlineTrialInstanceRequestSQS:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 86400
+    OnlineTrialInstanceRequestHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialInstanceRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                  Resource:
+                    - !GetAtt OnlineTrialRequestSQS.Arn
+                - Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource:
+                    - !GetAtt OnlineTrialInstanceRequestSQS.Arn
     OnlineTrialRequestHandlerIamRole:
       Type: AWS::IAM::Role
       DependsOn:
@@ -80,6 +122,20 @@
               // TODO implement and deploy in s3 bucket
               const message = JSON.parse(event.Records[0].Sns.Message);
               console.log(message);
+              // Get the message from SNS (as above)
+              // if the "source" key in the original request is online trials
+              //  Get the lead id property from the message
+              //  make a http request to Marketo with the lead id
+              //  Get the lead details
+              //  If successful, add entry to trial_requests dynamo table
+              //    Place full request onto queue (env var)
+              //    All OK
+              //  else retry n times
+              //  if n times has passed
+              //    request failed, notify IM solution, store unfulfilled entry in DB
+              //  else goto success
+              // else pass the request directly to the trial stack builder lambda
+              // with the appropriate details (TBD)
               callback(null, 'Hello from Lambda');
             };
         Environment:
@@ -89,6 +145,50 @@
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
         Timeout: 10
+    OnlineTrialInstanceRequestHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        Code:
+          ZipFile: >
+            exports.handler = (event, context, callback) => {
+              // TODO implement and deploy in s3 bucket
+              // Get message from read queue
+              // Find unallocated stack
+              // Mark it as unallocated
+              // Pass original message to publish queue with stack id
+              callback(null, 'Hello from Lambda');
+            };
+        Environment:
+          Variables:
+            sqs_read_url: !Ref OnlineTrialRequestSQS
+            sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
+        Runtime: nodejs4.3
+        Timeout: 10
+    OnlineTrialInstanceRequestScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialInstanceRequestHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Polls a queue for requests
+        ScheduleExpression: cron(0/1 * * * ? *) # Runs every minute
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialInstanceRequestHandler.Arn
+            Id: !Ref OnlineTrialInstanceRequestHandler
+    OnlineTrialInstanceRequestInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialInstanceRequestScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialInstanceRequestHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialInstanceRequestScheduleRule.Arn
     OnlineTrialRequestSNSTopic:
       Type: AWS::SNS::Topic
       DependsOn:
