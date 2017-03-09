@@ -29,8 +29,15 @@
         ParentId: !GetAtt OnlineTrialRequestAPI.RootResourceId
         PathPart: !Ref URI
         RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestSQS:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 86400 # 24 hours
+        # QueueName omitted so this resource can be updated
     OnlineTrialRequestHandlerIamRole:
       Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestSQS
       Properties:
         AssumeRolePolicyDocument:
           Version: 2012-10-17
@@ -53,14 +60,13 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DescribeLogStreams
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
                   Action:
                     - sqs:SendMessage
                   Resource:
-                    - "*"
+                    - !GetAtt OnlineTrialRequestSQS.Arn
     OnlineTrialRequestHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -76,9 +82,9 @@
               console.log(message);
               callback(null, 'Hello from Lambda');
             };
-        # Environment:
-          # Variables:
-            # sqs_queue_url: once we have created the queue pass the url here
+        Environment:
+          Variables:
+            sqs_url: !Ref OnlineTrialRequestSQS
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -231,7 +237,6 @@
                   Action:
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
-                    - logs:DescribeLogStreams
                     - logs:PutLogEvents
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: APIGatewayAWSProxyExecPolicy
@@ -257,4 +262,3 @@
 # Current Manual steps required:
 #
 # - Once this stack is deployed, you must associate the created api key with the usage plan
-# - When deleting a stack, the usage plan needs to be deleted manually. Make sure its the correct one
