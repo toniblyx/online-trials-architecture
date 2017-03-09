@@ -20,6 +20,14 @@ printVarSummary
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2
 
+# Temp workaround until bug fix
+separator
+USAGE_PLAN_ID=$(aws cloudformation describe-stack-resources \
+ --stack-name $STACK_NAME 
+ --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId"
+ --output text)
+logInfo "Usage plan ID is $USAGE_PLAN_ID"
+
 separator
 logInfo "Deleting the stack $STACK_NAME"
 
@@ -56,3 +64,8 @@ do
     sleep 10
     LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
 done
+
+# Part 2 of workaround
+separator
+logInfo "Deleting usage plan $USAGE_PLAN_ID"
+aws delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
