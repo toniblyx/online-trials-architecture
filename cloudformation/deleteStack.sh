@@ -62,7 +62,7 @@ do
         # Part 2 of workaround
         separator
         logInfo "Deleting usage plan $USAGE_PLAN_ID"
-        aws delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
+        aws apigateway delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
         exit 0
     fi
     sleep 10
