@@ -38,6 +38,82 @@
       Type: AWS::SQS::Queue
       Properties:
         MessageRetentionPeriod: 86400
+    OnlineTrialAssignUserHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialInstanceRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                  Resource:
+                    - !GetAtt OnlineTrialInstanceRequestSQS.Arn
+    OnlineTrialAssignUserHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        Code:
+          ZipFile: >
+            exports.handler = (event, context, callback) => {
+              // TODO implement and deploy in s3 bucket
+              // Get message from read queue, if any
+              // Call Api within the allocated stack to add user using Marketo details
+              // If successful call Marketo to update lead as success which triggers email
+              // Success
+              callback(null, 'Hello from Lambda');
+            };
+        Environment:
+          Variables:
+            sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
+            marketo_url: tbd
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
+        Runtime: nodejs4.3
+        Timeout: 10
+    OnlineTrialAssignUserScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialAssignUserHandler
+      Properties:
+        Description: Polls a queue to assign users to a stack
+        ScheduleExpression: cron(0/1 * * * ? *)
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialAssignUserHandler.Arn
+            Id: !Ref OnlineTrialAssignUserHandler
+    OnlineTrialAssignUserInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialAssignUserScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialAssignUserHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialAssignUserScheduleRule.Arn
     OnlineTrialInstanceRequestHandlerIamRole:
       Type: AWS::IAM::Role
       DependsOn:
@@ -141,6 +217,7 @@
         Environment:
           Variables:
             sqs_url: !Ref OnlineTrialRequestSQS
+            marketo_url: tbd
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -154,7 +231,7 @@
           ZipFile: >
             exports.handler = (event, context, callback) => {
               // TODO implement and deploy in s3 bucket
-              // Get message from read queue
+              // Get message from read queue, if any
               // Find unallocated stack
               // Mark it as unallocated
               // Pass original message to publish queue with stack id
@@ -362,3 +439,4 @@
 # Current Manual steps required:
 #
 # - Once this stack is deployed, you must associate the created api key with the usage plan
+# - Manually deleting the stack will leave the usage plan behind, this will need deleting
