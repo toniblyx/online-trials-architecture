@@ -59,13 +59,12 @@ do
         monitorStatus $STATUS
     else
         logInfo "Stack successfully deleted"
+        # Part 2 of workaround
+        separator
+        logInfo "Deleting usage plan $USAGE_PLAN_ID"
+        aws delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
         exit 0
     fi
     sleep 10
     LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
 done
-
-# Part 2 of workaround
-separator
-logInfo "Deleting usage plan $USAGE_PLAN_ID"
-aws delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
