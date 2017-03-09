@@ -8,7 +8,7 @@ usage() {
   exit 1
 }
 
-source common.func
+source ./common.func
 # Essential Variables
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2

@@ -96,7 +96,6 @@
     OnlineTrialRequestHandlerInvokePermission:
         Type: AWS::Lambda::Permission
         DependsOn:
-          - OnlineTrialRequestHandler
           - OnlineTrialRequestSNSTopic
         Properties:
           Action: lambda:InvokeFunction
@@ -189,7 +188,6 @@
     OnlineTrialRequestApiKey:
       Type: AWS::ApiGateway::ApiKey
       DependsOn:
-       - OnlineTrialRequestDeployment
        - OnlineTrialRequestStage
       Properties:
         # By not specifying a name, it allows this resource to be upgradeable
@@ -201,8 +199,8 @@
     OnlineTrialRequestUsagePlan:
       Type: AWS::ApiGateway::UsagePlan
       DependsOn:
-        - OnlineTrialRequestAPI
         - OnlineTrialRequestStage
+      DeletionPolicy: Retain # Until a bug is fixed that deletes this properly
       Properties:
         ApiStages:
           - ApiId: !Ref OnlineTrialRequestAPI

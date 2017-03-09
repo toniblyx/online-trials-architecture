@@ -13,7 +13,7 @@ else
     STACK_NAME=$(echo -n $3| tr / - | awk '{print tolower($0)}')
 fi
 
-source common.func
+source ./common.func
 printVarSummary
 
 # Essential Variables
