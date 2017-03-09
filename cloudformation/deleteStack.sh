@@ -24,7 +24,7 @@ export AWS_SECRET_ACCESS_KEY=$2
 separator
 USAGE_PLAN_ID=$(aws cloudformation describe-stack-resources \
  --stack-name $STACK_NAME \
- --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId" \ß
+ --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId" \
  --output text)
 logInfo "Usage plan ID is $USAGE_PLAN_ID"
 
