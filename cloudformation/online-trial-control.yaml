@@ -15,6 +15,10 @@
       Description: The URI that all requests for trials will be made to.
       Default: online-trial
       MinLength: 4
+    MinimumStackCount:
+      Type: Number
+      Description: The minimum number of stacks we want to have running in our "pool".
+      Default: 5
   Resources:
     OnlineTrialRequestAPI:
       Type: AWS::ApiGateway::RestApi
@@ -468,6 +472,7 @@
                     - opsworks:DeleteStack
                   Resource:
                     - "arn:aws:opsworks:*:*:*"
+                    - "arn:aws:ec2:*:*:*"
     OnlineTrialLifecycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -505,14 +510,96 @@
           - Arn: !GetAtt OnlineTrialLifecycleHandler.Arn
             Id: !Ref OnlineTrialLifecycleHandler
     OnlineTrialLifecycleInvokePermission:
-        Type: AWS::Lambda::Permission
-        DependsOn:
-          - OnlineTrialLifecycleScheduleRule
-        Properties:
-          Action: lambda:InvokeFunction
-          FunctionName: !Ref OnlineTrialLifecycleHandler
-          Principal: events.amazonaws.com
-          SourceArn: !GetAtt OnlineTrialLifecycleScheduleRule.Arn
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialLifecycleScheduleRule
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !Ref OnlineTrialLifecycleHandler
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialLifecycleScheduleRule.Arn
+    OnlineTrialStackBuilderIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialStackBuilderLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:*"
+          - PolicyName: OnlineTrialStackBuilderExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:DescribeStacks
+                    - ec2:CreateTags
+                    - ec2:DescribeTags
+                    - opsworks:CreateStack
+                  Resource:
+                    - "arn:aws:opsworks:*:*:*"
+                    - "arn:aws:ec2:*:*:*"
+    OnlineTrialScheduledStackBuilder:
+      Type: AWS::Lambda::Function
+      # should depend on opswork app
+      DependsOn:
+        - OnlineTrialStackBuilderIamRole
+      Properties:
+        Code:
+          ZipFile: >
+            exports.handler = (event, context, callback) => {
+              // Every n minutes, check we have at least n stacks running that are unassigned (tag)
+              // if we have less then n stacks
+              //  Work out how many stacks we need to build to get to our Limit
+              //  Loop around to build each stack successfully
+              //  make sure we are tagging the stacks as unassigned
+              // else ALL OK
+              callback(null, 'Hello from Lambda');
+            };
+        Environment:
+          Variables:
+            stack_count: !Ref MinimumStackCount
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
+        Runtime: nodejs4.3
+        Timeout: 10
+    OnlineTrialStackBuilderScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialScheduledStackBuilder
+      Properties:
+        # Name not provided to allow updates
+        Description: Every 5 minutes, check we have enough stacks ready to be assigned
+        ScheduleExpression: cron(0/5 * * * ? *) # Runs every 5 minutes
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialScheduledStackBuilder.Arn
+            Id: !Ref OnlineTrialScheduledStackBuilder
+    OnlineTrialStackBuilderInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialStackBuilderScheduleRule
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !Ref OnlineTrialScheduledStackBuilder
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialStackBuilderScheduleRule.Arn
   Outputs:
     OnlineTrialsRequestEndPoint:
       Description: The URI to test the request of a trial stack
