@@ -74,7 +74,7 @@
                   Action:
                     - sqs:ReceiveMessage
                   Resource:
-                    - !GetAtt OnlineTrialInstanceRequestSQS.Arn
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
     OnlineTrialAssignUserHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -150,16 +150,35 @@
                   Action:
                     - sqs:ReceiveMessage
                   Resource:
-                    - !GetAtt OnlineTrialRequestSQS.Arn
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
                 - Effect: Allow
                   Action:
                     - sqs:SendMessage
                   Resource:
-                    - !GetAtt OnlineTrialInstanceRequestSQS.Arn
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
+    OnlineTrialRequestDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      DependsOn:
+        - OnlineTrialRequestSQS
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: LeadId
+            AttributeType: "N"
+          - AttributeName: Date
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: LeadId
+            KeyType: HASH
+          - AttributeName: Date
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        # TableName not provided to allow updating/adding to indexes
     OnlineTrialRequestHandlerIamRole:
       Type: AWS::IAM::Role
       DependsOn:
-        - OnlineTrialRequestSQS
+        - OnlineTrialRequestDynamoDbTable
       Properties:
         AssumeRolePolicyDocument:
           Version: 2012-10-17
@@ -188,7 +207,12 @@
                   Action:
                     - sqs:SendMessage
                   Resource:
-                    - !GetAtt OnlineTrialRequestSQS.Arn
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:PutItem
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
     OnlineTrialRequestHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -222,6 +246,7 @@
           Variables:
             sqs_url: !Ref OnlineTrialRequestSQS
             marketo_url: tbd
+            trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -312,7 +337,7 @@
                   Action:
                     - sns:Publish
                   Resource:
-                    - !Ref OnlineTrialRequestSNSTopic
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
     OnlineTrialRequestGetMethod:
       Type: AWS::ApiGateway::Method
       Properties:
@@ -426,9 +451,9 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - sns:*
+                    - sns:Publish
                   Resource:
-                    - "arn:aws:sns:*:*:*"
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
     OnlineTrialRequestAccount:
       Type: AWS::ApiGateway::Account
       DependsOn:
