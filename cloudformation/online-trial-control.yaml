@@ -75,10 +75,16 @@
                     - sqs:ReceiveMessage
                   Resource:
                     - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialAssignStackDynamoDbTable}"
     OnlineTrialAssignUserHandler:
       Type: AWS::Lambda::Function
       DependsOn:
         - OnlineTrialInstanceRequestSQS
+        - OnlineTrialAssignStackDynamoDbTable
       Properties:
         Code:
           ZipFile: >
@@ -94,6 +100,7 @@
           Variables:
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
             marketo_url: tbd
+            assign_stack_table: !Ref OnlineTrialAssignStackDynamoDbTable
         Handler: index.handler
         Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
         Runtime: nodejs4.3
@@ -175,6 +182,24 @@
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
         # TableName not provided to allow updating/adding to indexes
+    OnlineTrialAssignStackDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: LeadId
+            AttributeType: "N"
+          - AttributeName: Date
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: LeadId
+            KeyType: HASH
+          - AttributeName: Date
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
     OnlineTrialRequestHandlerIamRole:
       Type: AWS::IAM::Role
       DependsOn:
@@ -210,7 +235,7 @@
                     - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
                 - Effect: Allow
                   Action:
-                    - dynamodb:PutItem
+                    - dynamodb:UpdateItem
                   Resource:
                     - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
     OnlineTrialRequestHandler:
