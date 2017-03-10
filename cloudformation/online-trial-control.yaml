@@ -200,6 +200,91 @@
         ProvisionedThroughput:
           ReadCapacityUnits: 5
           WriteCapacityUnits: 5
+    OnlineTrialFulfillmentIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+        - OnlineTrialRequestSNSTopic
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialFulfillmentLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource:
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:GetItem
+                    - dynamodb:BatchGetItem # just in case
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
+    OnlineTrialFulfillmentHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+      Properties:
+        Code:
+          ZipFile: >
+            exports.handler = (event, context, callback) => {
+              // TODO implement and deploy in s3 bucket
+              // Read from the trial request table for an unfulfilled request
+              // Create an object to post to the SNS Topic that contains two keys
+              // "source" and "lead". Source is "onlinetrial", "lead" is the lead id from the item
+              // Publish that object/message onto the SNS Topic
+              // (Fulfillment is satisfied by the trial request handler, not this handler)
+              callback(null, 'Hello from Lambda');
+            };
+        Environment:
+          Variables:
+            topic_arn: !Ref OnlineTrialRequestSNSTopic
+            trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
+        Handler: index.handler # this will need changing once we switch to Lambda
+        Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
+        Runtime: nodejs4.3 # Change to python when we start writing the code
+        Timeout: 10
+    OnlineTrialFulfillmentScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialFulfillmentHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Polls a DB table for unfulfilled requests and published them to SNS
+        ScheduleExpression: cron(0/10 * * * ? *) # Runs every 10 minutes
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialFulfillmentHandler.Arn
+            Id: !Ref OnlineTrialFulfillmentHandler
+    OnlineTrialFulfillmentInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialFulfillmentScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialFulfillmentHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialFulfillmentScheduleRule.Arn
     OnlineTrialRequestHandlerIamRole:
       Type: AWS::IAM::Role
       DependsOn:
