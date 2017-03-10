@@ -424,13 +424,95 @@
                   Action:
                     - sns:*
                   Resource:
-                    - "*"
+                    - "arn:aws:sns:*:*:*"
     OnlineTrialRequestAccount:
       Type: AWS::ApiGateway::Account
       DependsOn:
         - OnlineTrialRequestCloudWatchLogsRole
       Properties:
         CloudWatchRoleArn: !GetAtt OnlineTrialRequestCloudWatchLogsRole.Arn
+    OnlineTrialLifecycleIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialLifecycleLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:*"
+          - PolicyName: OnlineTrialLifecycleExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:DescribeStacks
+                    - ec2:DescribeTags
+                    - ec2:CreateTags
+                    - opsworks:StopStack
+                    - opsworks:DeleteStack
+                  Resource:
+                    - "arn:aws:opsworks:*:*:*"
+    OnlineTrialLifecycleHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialLifecycleIamRole
+      Properties:
+        Code:
+          ZipFile: >
+            exports.handler = (event, context, callback) => {
+              // TODO implement and deploy in s3 bucket
+              // Query all Opsworks stacks, for each trial stack
+              //  Check the expiration date tag
+              //  if the expiration has passed now
+              //    check the state of the stack
+              //    if the state is "running"
+              //      update the expiration date tag to 3 days from now
+              //      stop the stack
+              //    if the state is "stopped"
+              //      terminate the stack
+              callback(null, 'Hello from Lambda');
+            };
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialLifecycleIamRole.Arn
+        Runtime: nodejs4.3
+        Timeout: 10
+    OnlineTrialLifecycleScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialLifecycleHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Once per day, checks the opsworks stacks for expiration
+        ScheduleExpression: cron(0 1 * * ? *) # Runs every day at 1am UTC
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialLifecycleHandler.Arn
+            Id: !Ref OnlineTrialLifecycleHandler
+    OnlineTrialLifecycleInvokePermission:
+        Type: AWS::Lambda::Permission
+        DependsOn:
+          - OnlineTrialLifecycleScheduleRule
+        Properties:
+          Action: lambda:InvokeFunction
+          FunctionName: !Ref OnlineTrialLifecycleHandler
+          Principal: events.amazonaws.com
+          SourceArn: !GetAtt OnlineTrialLifecycleScheduleRule.Arn
   Outputs:
     OnlineTrialsRequestEndPoint:
       Description: The URI to test the request of a trial stack
