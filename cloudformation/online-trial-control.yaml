@@ -372,7 +372,7 @@
               // TODO implement and deploy in s3 bucket
               // Get message from read queue, if any
               // Find unallocated stack
-              // Mark it as unallocated
+              // Mark it as allocated
               // Pass original message to publish queue with stack id
               callback(null, 'Hello from Lambda');
             };
@@ -600,14 +600,14 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - opsworks:DescribeStacks
                     - ec2:DescribeTags
                     - ec2:CreateTags
-                    - opsworks:StopStack
-                    - opsworks:DeleteStack
+                    - ec2:StopInstances
+                    - cloudformation:DescribeStacks
+                    - cloudformation:DeleteStack
                   Resource:
-                    - "arn:aws:opsworks:*:*:*"
                     - "arn:aws:ec2:*:*:*"
+                    - "arn:aws:cloudformation:*:*:*"
     OnlineTrialLifecycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -617,13 +617,13 @@
           ZipFile: >
             exports.handler = (event, context, callback) => {
               // TODO implement and deploy in s3 bucket
-              // Query all Opsworks stacks, for each trial stack
-              //  Check the expiration date tag
+              // Query all CloudFormation stacks, for each trial stack
+              //  Check the expiration date tag on the instance
               //  if the expiration has passed now
               //    check the state of the stack
               //    if the state is "running"
               //      update the expiration date tag to 3 days from now
-              //      stop the stack
+              //      stop the instance
               //    if the state is "stopped"
               //      terminate the stack
               callback(null, 'Hello from Lambda');
@@ -653,8 +653,21 @@
         FunctionName: !Ref OnlineTrialLifecycleHandler
         Principal: events.amazonaws.com
         SourceArn: !GetAtt OnlineTrialLifecycleScheduleRule.Arn
+    OnlineTrialStackTemplateBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain  # deleted by the custom lambda
+      Properties:
+        AccessControl: BucketOwnerFullControl
+        BucketName: !Sub "online-trial-${Stage}-templates"
+        Tags:
+          - Key: Name
+            Value: Online Trials Template Bucket
+        VersioningConfiguration:
+          Status: Enabled
     OnlineTrialStackBuilderIamRole:
       Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialStackTemplateBucket
       Properties:
         AssumeRolePolicyDocument:
           Version: 2012-10-17
@@ -664,6 +677,7 @@
                 Service:
                   - lambda.amazonaws.com
                   - events.amazonaws.com
+                  - s3.amazonaws.com
               Action:
                 - sts:AssumeRole
         Policies:
@@ -683,13 +697,18 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - opsworks:DescribeStacks
-                    - ec2:CreateTags
-                    - ec2:DescribeTags
-                    - opsworks:CreateStack
+                    - cloudformation:CreateStack
                   Resource:
-                    - "arn:aws:opsworks:*:*:*"
-                    - "arn:aws:ec2:*:*:*"
+                    - "arn:aws:cloudformation:*:*:*"
+          - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
     OnlineTrialScheduledStackBuilder:
       Type: AWS::Lambda::Function
       # should depend on opswork app
@@ -702,6 +721,7 @@
               // Every n minutes, check we have at least n stacks running that are unassigned (tag)
               // if we have less then n stacks
               //  Work out how many stacks we need to build to get to our Limit
+              //  Get the template from the bucket based on the stage
               //  Loop around to build each stack successfully
               //  make sure we are tagging the stacks as unassigned
               // else ALL OK
@@ -710,6 +730,8 @@
         Environment:
           Variables:
             stack_count: !Ref MinimumStackCount
+            template_bucket_name: !Ref OnlineTrialStackTemplateBucket
+            template_bucket_key: !Sub "online-trial-${Stage}.yaml"
         Handler: index.handler
         Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
         Runtime: nodejs4.3
@@ -735,12 +757,39 @@
         FunctionName: !Ref OnlineTrialScheduledStackBuilder
         Principal: events.amazonaws.com
         SourceArn: !GetAtt OnlineTrialStackBuilderScheduleRule.Arn
+    OnlineTrialTemplatesBucketHandlerIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - s3.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialTemplatesBucketHandlerLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:*"
+          - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:*
+                  Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
   Outputs:
     OnlineTrialsRequestEndPoint:
       Description: The URI to test the request of a trial stack
       Value: !Sub "https://${OnlineTrialRequestAPI}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/${URI}"
-
-# Current Manual steps required:
-#
-# - Once this stack is deployed, you must associate the created api key with the usage plan
-# - Manually deleting the stack will leave the usage plan behind, this will need deleting
