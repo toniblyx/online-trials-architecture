@@ -757,7 +757,7 @@
         FunctionName: !Ref OnlineTrialScheduledStackBuilder
         Principal: events.amazonaws.com
         SourceArn: !GetAtt OnlineTrialStackBuilderScheduleRule.Arn
-    OnlineTrialTemplatesBuckerHandlerIamRole:
+    OnlineTrialTemplatesBucketHandlerIamRole:
       Type: AWS::IAM::Role
       Properties:
         AssumeRolePolicyDocument:
