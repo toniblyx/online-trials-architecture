@@ -658,7 +658,6 @@
       DeletionPolicy: Retain  # deleted by the custom lambda
       Properties:
         AccessControl: BucketOwnerFullControl
-        BucketName: !Sub "online-trial-${Stage}-templates"
         Tags:
           - Key: Name
             Value: Online Trials Template Bucket
