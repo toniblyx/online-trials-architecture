@@ -14,3 +14,5 @@ To test that the API built as expected:
 
 # DR Steps in case of catastrophe:
 
+- Pre packaged Lambdas can currently be found here: https://gitlab.alfresco.com/paas/devops-lambdas
+- We use the prepacked EmptyBucketsLambda.zip in the java directory. Upload this to a bucket thats in the same region as the DR system and when deploying the DR stack, update the parameter for "LambdaBucket" to that bucket name.

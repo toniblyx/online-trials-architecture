@@ -2,6 +2,15 @@
   AWSTemplateFormatVersion: 2010-09-09
   Description: "Control Architecture for allocating and managing Online Trials"
   Parameters:
+    LambdaBucket:
+      Type: String
+      Description: The name of the bucket that contains the Lambdas to download
+      MinLength: 8
+      Default: online-trial-devops-lambda
+    MinimumStackCount:
+      Type: Number
+      Description: The minimum number of stacks we want to have running in our "pool".
+      Default: 5
     Stage:
       Type: String
       Description: The stage we are deploying to; either test or prod.
@@ -15,10 +24,6 @@
       Description: The URI that all requests for trials will be made to.
       Default: online-trial
       MinLength: 4
-    MinimumStackCount:
-      Type: Number
-      Description: The minimum number of stacks we want to have running in our "pool".
-      Default: 5
   Resources:
     OnlineTrialRequestAPI:
       Type: AWS::ApiGateway::RestApi
@@ -606,8 +611,8 @@
                     - cloudformation:DescribeStacks
                     - cloudformation:DeleteStack
                   Resource:
-                    - "arn:aws:ec2:*:*:*"
-                    - "arn:aws:cloudformation:*:*:*"
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:*"
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
     OnlineTrialLifecycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -698,7 +703,7 @@
                   Action:
                     - cloudformation:CreateStack
                   Resource:
-                    - "arn:aws:cloudformation:*:*:*"
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -707,6 +712,7 @@
                   Action:
                     - s3:GetObject
                   Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
     OnlineTrialScheduledStackBuilder:
       Type: AWS::Lambda::Function
@@ -758,6 +764,8 @@
         SourceArn: !GetAtt OnlineTrialStackBuilderScheduleRule.Arn
     OnlineTrialTemplatesBucketHandlerIamRole:
       Type: AWS::IAM::Role
+      DependsOn:
+       - OnlineTrialStackTemplateBucket
       Properties:
         AssumeRolePolicyDocument:
           Version: 2012-10-17
@@ -766,6 +774,8 @@
               Principal:
                 Service:
                   - s3.amazonaws.com
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
               Action:
                 - sts:AssumeRole
         Policies:
@@ -785,9 +795,82 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - s3:*
+                    - s3:* # TODO: Needs to only be delete bucket, list versions and delete versions
                   Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
+    OnlineTrialTemplateBucketFillerHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialTemplatesBucketHandlerIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import json
+            import os
+            import cfnresponse
+            import urllib
+            import boto3
+
+            def handler(event, context):
+              branch = 'develop' if os.environ['stage'] == 'test' else 'master'
+              url = "https://git.alfresco.com/alfresco_devops/online-trials-architecture/blob/{0}/cloudformation/online-trial-stack.yaml".format(branch)
+              filename = "online-trial-stack-{0}.yaml".format(branch)
+              client = boto3.client('s3')
+              # if the event is create or update, add a new version of the template to the bucket
+              # if the event is delete, do nothing as the EmptyBucketLambda will handle it
+              try:
+                if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                  result = urllib.urlopen(url)
+                  data = result.read()
+                  with open("/tmp/{0}".format(filename), "wb") as f:
+                    f.write(data)
+                  # Upload the file to s3
+                  with open("/tmp/{0}".format(filename), "rb") as r:
+                    client.upload_fileobj(
+                      r, os.environ['bucket_name'], filename
+                    )
+              except Exception as err:
+                message = "{0}\n".format(err)
+                print(message)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+              else:
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+        Environment:
+          Variables:
+            bucket_name: !Ref OnlineTrialStackTemplateBucket
+            stage: !Ref Stage
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    OnlineTrialTemplatesBucketLifeCycleHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialTemplatesBucketHandlerIamRole
+      Properties:
+        Code:
+          S3Bucket: !Ref LambdaBucket
+          S3Key: EmptyBucketLambda.zip
+        Handler: org.alfresco.devops.EmptyBucktetsLambdaFunctionHandler
+        MemorySize: 512
+        Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
+        Runtime: java8
+        Timeout: 15
+    OnlineTrialTemplatesBucketLifecycleCustomResource:
+      Type: Custom::EmptyBucket
+      DependsOn:
+        - OnlineTrialTemplatesBucketLifeCycleHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialTemplatesBucketLifeCycleHandler.Arn
+        BucketName: !Ref OnlineTrialStackTemplateBucket
+    OnlineTrialTemplatesBucketFillerCustomResource:
+      Type: Custom::BucketFiller
+      DependsOn:
+        - OnlineTrialTemplateBucketFillerHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialTemplateBucketFillerHandler.Arn
   Outputs:
     OnlineTrialsRequestEndPoint:
       Description: The URI to test the request of a trial stack
