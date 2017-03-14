@@ -22,7 +22,7 @@ aws cloudformation create-change-set --stack-name $STACK_NAME --template-url htt
 # give the changeset time to be created
 separator
 logInfo "Waiting for the change set to be created...."
-sleep 30
+sleep 60
 RESULT=$(aws cloudformation describe-change-set --stack-name $STACK_NAME --change-set-name trial-update --query "Status" --output text)
 if [ "$RESULT" == "FAILED" ]; then
   separator
