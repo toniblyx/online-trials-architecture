@@ -975,6 +975,7 @@
       Type: AWS::ApiGateway::BasePathMapping
       DependsOn:
         - OnlineTrialRequestAPI
+        - OnlineTrialRequestStage
       Properties:
         DomainName: !Sub "request${Stage}.trial.alfresco.com"
         RestApiId: !Ref OnlineTrialRequestAPI
