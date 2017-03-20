@@ -16,6 +16,24 @@
       Type: Number
       Description: The minimum number of stacks we want to have running in our "pool".
       Default: 5
+    OpsWorksGitRepo:
+      Type: String
+      Description: The repo that contains the Chef recipes we use for patching the trial stacks
+      MinLength: 10
+      Default: git@github.com:Alfresco/opsworks-onlinetrials.git
+    OpsWorksGitRepoBranch:
+      Type: String
+      Description: The Branch/Revision of the OpsWorksGitRepo
+      Default: develop
+    OpsWorksGitSSHKey:
+      Type: CommaDelimitedList
+      Description: The Deploy PRIVATE key already created for the repo. Change SSH key newlines to commas
+      NoEcho: true
+      Default: -----BEGIN RSA PRIVATE KEY-----,MIIEowIBAAKCAQEAwoL7fx1wb3R67xYEGaBUqjgztL6xYGJNWa3CFfWXr25xit7v,FcfVZPSiLm22at8u+nqVk+9enQ/9a96YFHUoxVmFn9x3boLa1t9S33n73aPpxgC/,vzt1PaDet6KIUDYCSwwQy3RQ3NvnXZKtQ30NHHPqonhRBarhBr0pXs/xAHAXXOQM,gnjkdAP4Nq+idknvVbEI+SYBFmEMgiLDAx4H+YwAabBrAPcKYcdAaU17hCi6x82E,uwd3htK5MO8oGgnbvYGe0Xz8REUQM57JkmcPfvb2KEROr00d7QnZ9E5qNF1/JL8q,6TQhWtTWiW6xxYbkRutcxWGZYHlSsVPxvqxkgQIDAQABAoIBACoYPKNC1L1aIOyz,AAont4rrBM2d4zcvrvu0bedgsgYGSc469tTo3Vau1pZjqfGxATK16r8MM5acCkUY,9CKhRESJXjC9fp9M9F1CEWZJuOc7fPEb4mNZU8MVmH13UDbDqXViVBQjxQg3Evge,MR8E5hx9PY8RqL8oPvC9aUGakNZ+CvnQIDM35YP/jlneDs/wer4xTJ4VfOpL75mw,JZlxpsq2CgcNJCdKUbn6aIiwRt2NPG9IViohiv2Odfi2oro6nA+LWt57cHrJLwx8,eAwfo9/4YRDx9b6K2UlZgJnd9JUsHrxabHnHeWPZehbpFOlfQcAhe1wvh2Z37lbL,VXhMsAECgYEA535PUfm1yGtBGKIpBJ99CjdWyERvWy2TgrjFoLp7Qmq1PulaJoAW,LVCCW/OyWWqPTddu2/XGDMsSFZJmd5EebvqW02TQYFRIHuZAjrEeXJ4CzScX9S8D,JIGrX/4dsjt0/4p5vJKGpol160IG+/2N1pU0Aawd2jFjeWCfaVOF6MECgYEA1xpu,pLSxjUfKLV3412G+BxgbR8+D9t3U0GwRrj/E08+M5qDJlXwoqk5dfCqBGG2sYMg2,kAitPn3aBpCkiE3oqHMA2A/ybSX7I/3wkWZjgLB3q5IhasQE4gFZNO7DBaNgK43n,fCk6rhwG7XAaseRqkPs18rkLE/a6W6hcX3z/q8ECgYEApj/GA19MN8UfGOvMfW90,w1N+1ZCgUGDo4SaFd6q1PruXsrivb5rpUl3RYOwhF6o5hHPFP96//wwPzsI3KINl,0dnRW7u5EpU0vkwp7NAyt90ase7ze7fpj9w4EVZUSV395k+yocSxQwTRVMU0cuBj,bsn0cYcEYWC6yb6kfWXoc4ECgYAFBY7ztWw3uidUK891Z8jB7aQlZwjTqJYhT4SS,Jtb3gu7tK2/JV56zayTvkyZ0ZYsSr1nmvu0cel+uq43LyNXXqOeqI6UrOynDy1fk,bRmBlZ0VmlHBZlYe2J02iSRwa0IBgkyXL3c5PVpEDMvyvzxlqhe2VO+XRblQDnwp,lod5gQKBgHi55LxYlVLNvYPmTay9oIp7lZ4QMkrzjJogdoNIhj5E95DkQKqYf18W,hb51hJpUB4TcPWOOHxKl1CHvpLCH8UwkJ6J42Fef2bv8KIUv+Ih1glV4uLycN2se,nj9pWOxmzAE3u8olxBj6JY0N0jPFRvMpjGZtLueeHms56m93lTCN,-----END RSA PRIVATE KEY-----
+    OpsWorksLayerSecurityGroups:
+      Type: String
+      Description: A security group to add to the OpsWorks layer aside from the default.
+      Default: sg-01f5d264
     Stage:
       Type: String
       Description: The stage we are deploying to; either test or prod.
@@ -29,6 +47,21 @@
       Description: The URI that all requests for trials will be made to.
       Default: online-trial
       MinLength: 4
+    OnlineTrialsVPCId:
+      Type: String
+      Description: The VPC Id that the OpsWork Stack will be deployed to. Must be the same as the trials
+      MinLength: 12
+      Default: vpc-80b606e5
+    OnlineTrialsSubnetId:
+      Type: String
+      Description: A list of subnets. Must be associated with the Vpc Id.
+      MinLength: 15
+      Default: subnet-ac7f8ff5
+      AllowedValues:
+        - subnet-ac7f8ff5
+        - subnet-6745564f
+        - subnet-549c4d23
+        - subnet-e94076d3
   Resources:
     OnlineTrialRequestAPI:
       Type: AWS::ApiGateway::RestApi
@@ -976,10 +1009,114 @@
       DependsOn:
         - OnlineTrialRequestAPI
         - OnlineTrialRequestStage
+        - OnlineTrialAPICustomDomainCustomResource
       Properties:
+        BasePath: " "
         DomainName: !Sub "request${Stage}.trial.alfresco.com"
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
+    OnlineTrialOpsWorksEc2Role:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - opsworks.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialOpsWorksRegistrationPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:DescribeStackProvisioningParameters
+                    - opsworks:DescribeStacks
+                    - opsworks:RegisterInstance
+                  Resource: 
+                    - "*"
+          - PolicyName: OnlineTrialOpsWorksEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeInstances
+                  Resource:
+                    - "*"
+          - PolicyName: OnlineTrialOpsWorksIamPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - iam:CreateGroup
+                    - iam:CreateUser
+                    - iam:AddUserToGroup
+                    - iam:PutUserPolicy
+                    - iam:CreateAccessKey
+                  Resource:
+                    - "*"
+    OnlineTrialOpsWorksInstanceProfile:
+      Type: AWS::IAM::InstanceProfile
+      DependsOn:
+        - OnlineTrialOpsWorksEc2Role
+      Properties:
+        Roles:
+          - !Ref OnlineTrialOpsWorksEc2Role
+    OnlineTrialOpsWorksStack:
+      Type: AWS::OpsWorks::Stack
+      DependsOn:
+        - OnlineTrialOpsWorksInstanceProfile
+      Properties:
+        ConfigurationManager:
+          Name: Chef
+          Version: 12
+        CustomCookbooksSource:
+          Revision: !Ref OpsWorksGitRepoBranch
+          SshKey: !Join [ "\n" , !Ref OpsWorksGitSSHKey ]
+          Type: git
+          Url: !Ref OpsWorksGitRepo
+        DefaultInstanceProfileArn:
+          Fn::Join:
+            - ''
+            - - "arn:aws:iam::"
+              - !Ref "AWS::AccountId"
+              - ":instance-profile/"
+              - !Ref OnlineTrialOpsWorksInstanceProfile
+        DefaultOs: Custom
+        DefaultRootDeviceType: ebs
+        DefaultSubnetId: !Ref OnlineTrialsSubnetId
+        Name: !Sub "OnlineTrialOpsWorksStack-${Stage}"
+        ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-opsworks-service-role" # current default
+        UseCustomCookbooks: true
+        UseOpsworksSecurityGroups: true
+        VpcId: !Ref OnlineTrialsVPCId
+    OnlineTrialOpsWorksAlfrescoLayer:
+      Type: AWS::OpsWorks::Layer
+      DependsOn:
+        - OnlineTrialOpsWorksStack
+      Properties:
+        AutoAssignElasticIps: false
+        AutoAssignPublicIps: true
+        CustomInstanceProfileArn:
+          Fn::Join:
+            - ''
+            - - "arn:aws:iam::"
+              - !Ref "AWS::AccountId"
+              - ":instance-profile/"
+              - !Ref OnlineTrialOpsWorksInstanceProfile
+        CustomSecurityGroupIds:
+          - !Ref OpsWorksLayerSecurityGroups
+        EnableAutoHealing: true
+        Name: !Sub "AlfrescoLayer-${Stage}"
+        Shortname: !Sub "otalf-${Stage}"
+        StackId: !Ref OnlineTrialOpsWorksStack
+        Type: custom
   Outputs:
     DistributionName:
       Description: The CloudFront distribution name to point a R53 entry to.
@@ -993,3 +1130,13 @@
     TopicArn:
       Description: The ARN of the Topic tied to the API gateway. Needed as a header to make a request (topicarn=)
       Value: !Ref OnlineTrialRequestSNSTopic
+    OpsWorksStackId:
+      Description: The OpsWorks Stack Id needed for each Trial stack to register to.
+      Value: !Ref OnlineTrialOpsWorksStack
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksStackId"
+    OpsWorksLayerId:
+      Description: The OpsWorks Layer Id needed for each Trial stacks' instance to assign to.
+      Value: !Ref OnlineTrialOpsWorksAlfrescoLayer
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksLayerId"
