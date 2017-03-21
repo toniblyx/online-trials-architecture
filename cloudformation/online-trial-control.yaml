@@ -29,7 +29,7 @@
       Type: CommaDelimitedList
       Description: The Deploy PRIVATE key already created for the repo. Change SSH key newlines to commas
       NoEcho: true
-      Default: -----BEGIN RSA PRIVATE KEY-----,MIIEowIBAAKCAQEAwoL7fx1wb3R67xYEGaBUqjgztL6xYGJNWa3CFfWXr25xit7v,FcfVZPSiLm22at8u+nqVk+9enQ/9a96YFHUoxVmFn9x3boLa1t9S33n73aPpxgC/,vzt1PaDet6KIUDYCSwwQy3RQ3NvnXZKtQ30NHHPqonhRBarhBr0pXs/xAHAXXOQM,gnjkdAP4Nq+idknvVbEI+SYBFmEMgiLDAx4H+YwAabBrAPcKYcdAaU17hCi6x82E,uwd3htK5MO8oGgnbvYGe0Xz8REUQM57JkmcPfvb2KEROr00d7QnZ9E5qNF1/JL8q,6TQhWtTWiW6xxYbkRutcxWGZYHlSsVPxvqxkgQIDAQABAoIBACoYPKNC1L1aIOyz,AAont4rrBM2d4zcvrvu0bedgsgYGSc469tTo3Vau1pZjqfGxATK16r8MM5acCkUY,9CKhRESJXjC9fp9M9F1CEWZJuOc7fPEb4mNZU8MVmH13UDbDqXViVBQjxQg3Evge,MR8E5hx9PY8RqL8oPvC9aUGakNZ+CvnQIDM35YP/jlneDs/wer4xTJ4VfOpL75mw,JZlxpsq2CgcNJCdKUbn6aIiwRt2NPG9IViohiv2Odfi2oro6nA+LWt57cHrJLwx8,eAwfo9/4YRDx9b6K2UlZgJnd9JUsHrxabHnHeWPZehbpFOlfQcAhe1wvh2Z37lbL,VXhMsAECgYEA535PUfm1yGtBGKIpBJ99CjdWyERvWy2TgrjFoLp7Qmq1PulaJoAW,LVCCW/OyWWqPTddu2/XGDMsSFZJmd5EebvqW02TQYFRIHuZAjrEeXJ4CzScX9S8D,JIGrX/4dsjt0/4p5vJKGpol160IG+/2N1pU0Aawd2jFjeWCfaVOF6MECgYEA1xpu,pLSxjUfKLV3412G+BxgbR8+D9t3U0GwRrj/E08+M5qDJlXwoqk5dfCqBGG2sYMg2,kAitPn3aBpCkiE3oqHMA2A/ybSX7I/3wkWZjgLB3q5IhasQE4gFZNO7DBaNgK43n,fCk6rhwG7XAaseRqkPs18rkLE/a6W6hcX3z/q8ECgYEApj/GA19MN8UfGOvMfW90,w1N+1ZCgUGDo4SaFd6q1PruXsrivb5rpUl3RYOwhF6o5hHPFP96//wwPzsI3KINl,0dnRW7u5EpU0vkwp7NAyt90ase7ze7fpj9w4EVZUSV395k+yocSxQwTRVMU0cuBj,bsn0cYcEYWC6yb6kfWXoc4ECgYAFBY7ztWw3uidUK891Z8jB7aQlZwjTqJYhT4SS,Jtb3gu7tK2/JV56zayTvkyZ0ZYsSr1nmvu0cel+uq43LyNXXqOeqI6UrOynDy1fk,bRmBlZ0VmlHBZlYe2J02iSRwa0IBgkyXL3c5PVpEDMvyvzxlqhe2VO+XRblQDnwp,lod5gQKBgHi55LxYlVLNvYPmTay9oIp7lZ4QMkrzjJogdoNIhj5E95DkQKqYf18W,hb51hJpUB4TcPWOOHxKl1CHvpLCH8UwkJ6J42Fef2bv8KIUv+Ih1glV4uLycN2se,nj9pWOxmzAE3u8olxBj6JY0N0jPFRvMpjGZtLueeHms56m93lTCN,-----END RSA PRIVATE KEY-----
+      Default: " "
     OpsWorksLayerSecurityGroups:
       Type: String
       Description: A security group to add to the OpsWorks layer aside from the default.
@@ -1011,7 +1011,7 @@
         - OnlineTrialRequestStage
         - OnlineTrialAPICustomDomainCustomResource
       Properties:
-        BasePath: " "
+        BasePath: " " # Workaround for CF bug. Unless specified, even if empty/none is required, delete will fail.
         DomainName: !Sub "request${Stage}.trial.alfresco.com"
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
