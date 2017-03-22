@@ -7,6 +7,16 @@
       Description: The ARN of the certificate to use when creating a custom domain name for the API gateway
       MinLength: 83
       Default: arn:aws:acm:us-east-1:179276412545:certificate/4f68e66a-9e6a-45e2-9945-ac880e6a21df
+    APIDomainName:
+      Type: String
+      Description: The API Domain name to use IF this template is being created by Bamboo
+    CreatedBy:
+      Type: String
+      Description: A parameter used in a condition to decide which domain names to create for API gateway
+      Default: Other
+      AllowedValues:
+        - Other
+        - Bamboo
     LambdaBucket:
       Type: String
       Description: The name of the bucket that contains the Lambdas to download
@@ -32,16 +42,15 @@
       Default: " "
     OpsWorksLayerSecurityGroups:
       Type: String
-      Description: A security group to add to the OpsWorks layer aside from the default.
+      Description: A security group to add to the OpsWorks layer in addition to the default.
       Default: sg-01f5d264
     Stage:
       Type: String
       Description: The stage we are deploying to; either test or prod.
-      ConstraintDescription: Must be either test or prod
       Default: test
-      AllowedPattern: "(\\btest\\b|\\bprod\\b)"
-      MinLength: 4
-      MaxLength: 4
+      AllowedValues:
+        - test
+        - prod
     URI:
       Type: String
       Description: The URI that all requests for trials will be made to.
@@ -62,6 +71,8 @@
         - subnet-6745564f
         - subnet-549c4d23
         - subnet-e94076d3
+  Conditions:
+    UseDomainName: !Equals [!Ref CreatedBy, Bamboo]
   Resources:
     OnlineTrialRequestAPI:
       Type: AWS::ApiGateway::RestApi
@@ -438,6 +449,7 @@
           Variables:
             sqs_read_url: !Ref OnlineTrialRequestSQS
             sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
+            stage: !Ref Stage
         Handler: index.handler
         Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
         Runtime: nodejs4.3
@@ -977,7 +989,8 @@
                     - apigateway:DELETE
                   Resource: 
                     - !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames"
-                    - !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames/request${Stage}.trial.alfresco.com"
+                    - !If [UseDomainName, !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames/${APIDomainName}",
+                     !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames/request${Stage}.trial.alfresco.com"]
           - PolicyName: OnlineTrialCloudfrontPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -997,7 +1010,7 @@
         Environment:
           Variables:
             certificate_arn: !Ref APICertArn
-            domain_name: !Sub "request${Stage}.trial.alfresco.com"
+            domain_name: !If [UseDomainName, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
         Handler: api_domain_name.handler
         Role: !GetAtt OnlineTrialAPICustomDomainNameIamRole.Arn
         Runtime: python2.7
@@ -1016,7 +1029,7 @@
         - OnlineTrialAPICustomDomainCustomResource
       Properties:
         BasePath: " " # Workaround for CF bug. Unless specified, even if empty/none is required, delete will fail.
-        DomainName: !Sub "request${Stage}.trial.alfresco.com"
+        DomainName: !If [UseDomainName, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
     OnlineTrialOpsWorksEc2Role:
@@ -1130,7 +1143,7 @@
       Value: !Sub "https://${OnlineTrialRequestAPI}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/${URI}"
     OnlineTrialsRequestDomainName:
       Description: The pretty domain name to hand over to marketing.
-      Value: !Sub "https://request${Stage}.trial.alfresco.com/${URI}"
+      Value: !If [UseDomainName, !Sub "https://${APIDomainName}/${URI}", !Sub "https://request${Stage}.trial.alfresco.com/${URI}"]
     TopicArn:
       Description: The ARN of the Topic tied to the API gateway. Needed as a header to make a request (topicarn=)
       Value: !Ref OnlineTrialRequestSNSTopic
@@ -1149,3 +1162,8 @@
       Value: !Ref OnlineTrialOpsWorksInstanceProfile
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksInstanceProfileName"
+    OpsWorksDeploymentStage:
+      Description: The Stage that the stacks are being deployed into
+      Value: !Ref Stage
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksDeploymentStage"
