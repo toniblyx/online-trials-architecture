@@ -1,0 +1,167 @@
+---
+  AWSTemplateFormatVersion: 2010-09-09
+  Description: "Online Trial Stack. Everything needed to deploy a single trial stack"
+  Parameters:
+    ControlArchitectureName:
+      Description: The name of the Online Trial Control architecture cloudformation stack
+      Type: String
+      MinLength: 1
+      Default: online-trial-control-test
+    TrialAMIId:
+      Description: The AMI Id of the Trial Image
+      Type: AWS::EC2::Image::Id
+      Default: ami-d50edec3
+      MinLength: 1
+    TrialInstanceType:
+      Description: The type of EC2 instance to deploy the AMI to
+      Type: String
+      Default: t2.medium
+      MinLength: 1
+      AllowedValues:
+        - t2.medium
+        - t2.large
+        - m4.large
+        - m4.xlarge
+        - m4.2xlarge
+        - m4.4xlarge
+    TrialInstanceSecurityGroupId:
+      Description: A security group id assigned to the ec2 instance
+      Type: String
+      Default: sg-01f5d264
+      MinLength: 1
+    TrialSSHKey:
+      Description: The name of an existing EC2 KeyPair
+      Type: AWS::EC2::KeyPair::KeyName
+      Default: salty-trials
+    VPCID:
+      Description: The current VPC ID that all trials are deployed into
+      Type: String
+      Default: vpc-80b606e5
+      MinLength: 1
+  Resources:
+    TrialSubnetIdAllocatorIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialSubnetIdAllocatorLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+          - PolicyName: TrialSubnetIdAllocatorPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeSubnets
+                  Resource:
+                    - "*"
+    TrialSubnetIdAllocator:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialSubnetIdAllocatorIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+            import random
+
+            def handler(event, context):
+              client = boto3.client('ec2')
+              try:
+                # if the event is create, list subnets in the vpc
+                # choose one at random and return it
+                if event['RequestType'] == 'Create':
+                  response = client.describe_subnets(
+                    Filters=[{
+                        'Name': 'vpc-id',
+                        'Values': [os.environ['vpc_id']]
+                      }
+                    ]
+                  )
+
+                  subnets = []
+                  for i in range(0, len(response['Subnets'])):
+                    subnet_id = response['Subnets'][i]['SubnetId']
+                    info = "Adding {0} to subnet list".format(subnet_id)
+                    print(info)
+                    subnets.append(subnet_id)
+                  
+                  responseData = {'SubnetId' : random.choice(subnets)}
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                message = "{0}\n".format(err)
+                print(message)
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            vpc_id: !Ref VPCID
+        Handler: index.handler
+        Role: !GetAtt TrialSubnetIdAllocatorIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    TrialSubnetIdAllocatorCustomResource:
+      Type: Custom::GetSubnetId
+      DependsOn:
+        - TrialSubnetIdAllocator
+      Properties:
+        ServiceToken: !GetAtt TrialSubnetIdAllocator.Arn
+    TrialEc2Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        IamInstanceProfile: "online-trial-control-test-OnlineTrialOpsWorksInstanceProfile-1VBSODCJLG2CS"
+          # Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksInstanceProfileName"
+        ImageId: !Ref TrialAMIId
+        InstanceType: !Ref TrialInstanceType
+        KeyName: !Ref TrialSSHKey
+        SecurityGroupIds:
+          - !Ref TrialInstanceSecurityGroupId
+        SourceDestCheck: true
+        SubnetId: !GetAtt TrialSubnetIdAllocatorCustomResource.SubnetId
+        Tags:
+          - Key: Account
+            Value: !Ref AWS::AccountId
+          - Key: Name
+            Value: JuenasTestInstance # once r53 is created, should be the generated name.trial-ALFRESCO1
+          - Key: Allocated
+            Value: false
+        # UserData:
+        #   Fn::Base64:
+        #     Fn::Join:
+        #       - ''
+        #       - - !Sub |
+        #           #!/bin/bash -x
+        #           /usr/bin/easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz || sleep 10
+  Outputs:
+    Type:
+      Description: The type of stack this is; Trial, etc.
+      Value: Trial
+    InstanceId:
+      Description: The id of the ec2 instance created by this stack
+      Value: !Ref TrialEc2Instance
+    Url:
+      Description: The Public Url that allows users access
+      Value: !Sub "https://${TrialEc2Instance.PublicDnsName}"
+    
