@@ -210,11 +210,15 @@
                     - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
                 - Effect: Allow
                   Action:
-                    - cloudformation:ListStacks
                     - cloudformation:DescribeStacks
-                    - cloudformation:UpdateStack
                   Resource:
                     - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeTags
+                    - ec2:CreateTags
+                  Resource:
+                    - "*"
     OnlineTrialRequestDynamoDbTable:
       Type: AWS::DynamoDB::Table
       DependsOn:
@@ -1140,3 +1144,8 @@
       Value: !Ref OnlineTrialOpsWorksAlfrescoLayer
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksLayerId"
+    OpsWorksInstanceProfileName:
+      Description: The name of the instance profile to be associated with the EC2 instances
+      Value: !Ref OnlineTrialOpsWorksInstanceProfile
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksInstanceProfileName"
