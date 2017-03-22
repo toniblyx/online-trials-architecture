@@ -49,6 +49,9 @@ monitorStatus() {
         *ROLLBACK_COMPLETE*)
             logError "ROLLBACK_COMPLETE. Stack creation failed"
             ;;
+        *CREATE_FAILED*)
+            logError "CREATED_FAILED. Stack creation failed"
+            ;;
         *CREATE_IN_PROGRESS*)
             echo -ne "CREATE_IN_PROGRESS... \\n(This can take up to 30 minutes)\\r"
             ;;

@@ -19,6 +19,7 @@ else
   TEMPLATE_NAME="online-trial-control.yaml"
   S3_TEMPLATE_NAME="$3.yaml"
   STACK_NAME=$(echo -n $3 | tr / - | awk '{print tolower($0)}')
+
   CAPABILITIES=CAPABILITY_IAM
   STACK_CREATION_TIMEOUT=600
 
@@ -35,6 +36,13 @@ else
   aws s3 mb s3://$S3_BUCKET
   aws s3 cp $TEMPLATE_NAME s3://$S3_BUCKET/$S3_TEMPLATE_NAME
 
+  # Replace placeholders
+  separator
+  logInfo "Replacing placeholders in parameters.json"
+  sed -i'.bak' "
+      s/@@STACK_NAME@@/$STACK_NAME/g
+  " parameters.json
+
   # Validate the template
   separator
   logInfo "Validate the Cloudformation template"
@@ -42,7 +50,7 @@ else
 
   # Create the stack
   separator
-  aws cloudformation create-stack --stack-name $STACK_NAME --template-url https://s3.amazonaws.com/$S3_BUCKET/$S3_TEMPLATE_NAME --capabilities $CAPABILITIES --disable-rollback
+  aws cloudformation create-stack --stack-name $STACK_NAME --template-url https://s3.amazonaws.com/$S3_BUCKET/$S3_TEMPLATE_NAME --parameters file://parameters.json --capabilities $CAPABILITIES --disable-rollback
   if [ $? -ne 0 ]; then
     logError "Stack creation failed."
   fi

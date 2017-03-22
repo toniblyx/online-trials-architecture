@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey":"APIDomainName",
+    "ParameterValue": "@@STACK_NAME@@.trial.alfresco.com"
+  },
+  {
+    "ParameterKey":"CreatedBy",
+    "ParameterValue": "Bamboo"
+  }
+]
