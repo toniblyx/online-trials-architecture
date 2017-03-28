@@ -18,7 +18,7 @@ STACK_NAME="online-trial-control-test"
 # if the status was "FAILED" this was because there we no changes to execute, so we delete the change set then exit early
 # otherwise we execute the change set
 S3_TEMPLATE_NAME="$3.yaml"
-aws cloudformation create-change-set --stack-name $STACK_NAME --template-url https://s3.amazonaws.com/$S3_BUCKET/$S3_TEMPLATE_NAME --change-set-name trial-update --capabilities $CAPABILITIES
+aws cloudformation create-change-set --stack-name $STACK_NAME --template-body file://online-trial-control.yaml --change-set-name trial-update --capabilities $CAPABILITIES
 # give the changeset time to be created
 separator
 logInfo "Waiting for the change set to be created...."
