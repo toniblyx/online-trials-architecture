@@ -7,8 +7,8 @@ usage() {
   echo "Usage: updateStack.sh <access_key_id> <secret_access_key> <stack_name>"
   exit 1
 }
-
-source ./common.func
+BAMBOO_WORKING_DIR=$4
+source $BAMBOO_WORKING_DIR/common.func
 # Essential Variables
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2
