@@ -69,7 +69,13 @@ else
           logError "Stack creation timeout after $TIMEOUT_IN_MIN minutes"
       fi
       STATUS=`aws cloudformation describe-stack-events --stack-name $STACK_NAME | head -n 10 | grep -B1 AWS::CloudFormation::Stack`
-      monitorStatus "$STATUS"
+      if [[ "$STATUS" != "" ]]; then
+        monitorStatus "$STATUS"
+      else
+        logInfo "Stack successfully created"
+        separator
+        exit 0
+      fi
       sleep 10
       LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
   done
