@@ -671,21 +671,36 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource: "arn:aws:logs:*:*:*"
-          - PolicyName: OnlineTrialLifecycleExecPolicy
+          - PolicyName: OnlineTrialLifecycleStopEc2Policy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
                 - Effect: Allow
                   Action:
                     - ec2:StopInstances
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+          - PolicyName: OnlineTrialLifecycleDescribeEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
                     - ec2:DescribeInstanceStatus
+                  Resource:
+                    - !Sub "*"
+          - PolicyName: OnlineTrialLifecycleCloudformationPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
                     - cloudformation:DescribeStacks
                     - cloudformation:ListStacks
                     - cloudformation:DeleteStack
                     - cloudformation:UpdateStack
                   Resource:
-                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:*"
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*"
     OnlineTrialLifecycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -778,7 +793,7 @@
                     - cloudformation:ListStacks
                     - cloudformation:DescribeStacks
                   Resource:
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
