@@ -19,3 +19,5 @@ To test that the API built as expected:
 - Pre packaged Lambdas can currently be found here: https://gitlab.alfresco.com/paas/devops-lambdas
 - We use the prepacked EmptyBucketsLambda.zip and ApiDomainName.zip lambdas. Upload thess to a bucket thats in the same region as the DR system and when deploying the DR stack, update the parameters for "LambdaBucket" to that bucket name. This will be automated in V2.0.
 - Find the correct R53 entry in the SYSTEMS account (either test or prod) and update the alias to the new cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard. This will be automated in V2.0.
+- If necessary, find the correct Trial AMI and share it to another region/account. Update the parameter in the online-trial-stack.yaml template.
+- As the VPC and security groups used by Trials arent created by the control, they will need recreating manually in another region/account and the online-trial-stack.yaml template will need its parameters updated for this.
