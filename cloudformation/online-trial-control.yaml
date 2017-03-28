@@ -909,7 +909,8 @@
                     client.upload_fileobj(
                       r, os.environ['bucket_name'], filename
                     )
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
                 print("{0}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
