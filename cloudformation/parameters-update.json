@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey":"APIDomainName",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"OpsWorksGitSSHKey",
+    "UsePreviousValue": true
+  }
+]
