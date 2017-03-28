@@ -59,24 +59,27 @@ else
   # Wait for the stack to create OK/FAIL
   separator
   logInfo "Waiting for stack creation - $STACK_NAME"
-
-  CREATION_COMPLETE_EVENT="FALSE"
   LOOP_COUNTER=0
-  while [ "$CREATION_COMPLETE_EVENT" != "CREATE_COMPLETE" ]
+  while true;
   do
       if [ $LOOP_COUNTER -eq $STACK_CREATION_TIMEOUT ]; then
           TIMEOUT_IN_MIN=`expr $STACK_CREATION_TIMEOUT / 6`
           logError "Stack creation timeout after $TIMEOUT_IN_MIN minutes"
       fi
-      STATUS=`aws cloudformation describe-stack-events --stack-name $STACK_NAME | head -n 10 | grep -B1 AWS::CloudFormation::Stack`
-      if [[ "$STATUS" != "" ]]; then
-        monitorStatus "$STATUS"
-      else
+      STATUS=$(aws cloudformation describe-stacks \
+      --stack-name $STACK_NAME \
+      --query "Stacks[?StackName==`$STACK_NAME`].StackStatus" \
+      --output text
+      )
+
+      if [[ "$STATUS" == "CREATE_COMPLETE" ]]; then
         logInfo "Stack successfully created"
         separator
         exit 0
-      fi
-      sleep 10
-      LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
+      else
+        monitorStatus "$STATUS"
+        sleep 10
+        LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
+      fi      
   done
 fi
