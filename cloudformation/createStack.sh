@@ -68,9 +68,8 @@ else
       fi
       STATUS=$(aws cloudformation describe-stacks \
       --stack-name $STACK_NAME \
-      --query "Stacks[?StackName==`$STACK_NAME`].StackStatus" \
-      --output text
-      )
+      --query "Stacks[*].StackStatus" \
+      --output text)
 
       if [[ "$STATUS" == "CREATE_COMPLETE" ]]; then
         logInfo "Stack successfully created"
