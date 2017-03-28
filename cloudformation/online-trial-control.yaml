@@ -688,7 +688,7 @@
                   Action:
                     - ec2:DescribeInstanceStatus
                   Resource:
-                    - !Sub "*"
+                    - "*"
           - PolicyName: OnlineTrialLifecycleCloudformationPolicy
             PolicyDocument:
               Version: 2012-10-17
