@@ -223,7 +223,7 @@
                   Action:
                     - cloudformation:DescribeStacks
                   Resource:
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+                    - "*"
                 - Effect: Allow
                   Action:
                     - ec2:DescribeTags
@@ -909,12 +909,10 @@
                     client.upload_fileobj(
                       r, os.environ['bucket_name'], filename
                     )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                message = "{0}\n".format(err)
-                print(message)
+                print("{0}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
-              else:
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
         Environment:
           Variables:
             bucket_name: !Ref OnlineTrialStackTemplateBucket
@@ -1032,6 +1030,34 @@
         DomainName: !If [UseDomainName, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
+    OnlineTrialOpsWorksUser:
+      Type: AWS::IAM::User
+      Properties:
+        Policies:
+        - PolicyName: OpsWorksAccess
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - opsworks:DescribeStacks
+                  - opsworks:DescribeStackProvisioningParameters
+                  - opsworks:DescribeInstances
+                  - opsworks:AssignInstance
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - iam:CreateGroup
+                  - iam:CreateUser
+                  - iam:AddUserToGroup
+                  - iam:PutUserPolicy
+                  - iam:CreateAccessKey
+                Resource: "*"
+    OnlineTrialOpsWorksKeys:
+      Type: AWS::IAM::AccessKey
+      DependsOn:
+        - OnlineTrialOpsWorksUser
+      Properties:
+        UserName: !Ref OnlineTrialOpsWorksUser
     OnlineTrialOpsWorksEc2Role:
       Type: AWS::IAM::Role
       Properties:
@@ -1167,3 +1193,13 @@
       Value: !Ref Stage
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksDeploymentStage"
+    OpsWorksAccessKey:
+      Description: The access key to call the OpsWorks register command
+      Value: !Ref OnlineTrialOpsWorksKeys
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksAccessKey"
+    OpsWorksSecretKey:
+      Description: The secret key to call the OpsWorks register command
+      Value: !GetAtt OnlineTrialOpsWorksKeys.SecretAccessKey
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksSecretKey"
