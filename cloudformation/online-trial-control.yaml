@@ -122,6 +122,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -207,6 +208,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -294,6 +296,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -337,7 +340,7 @@
         - OnlineTrialFulfillmentHandler
       Properties:
         # Name not provided to allow updates
-        Description: Polls a DB table for unfulfilled requests and published them to SNS
+        Description: Polls a DB table for unfulfilled requests and publishes them to SNS
         ScheduleExpression: cron(0/10 * * * ? *) # Runs every 10 minutes
         State: ENABLED
         Targets:
@@ -378,6 +381,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -599,7 +603,7 @@
       Type: AWS::ApiGateway::UsagePlan
       DependsOn:
         - OnlineTrialRequestStage
-      DeletionPolicy: Retain # Until a bug is fixed that deletes this properly
+      DeletionPolicy: Retain
       Properties:
         ApiStages:
           - ApiId: !Ref OnlineTrialRequestAPI
@@ -609,6 +613,15 @@
           Limit: 500
           Period: MONTH
         UsagePlanName: Plan_Online_Trials
+    OnlineTrialRequestUsagePlanKey:
+      Type: AWS::ApiGateway::UsagePlanKey
+      DependsOn:
+        - OnlineTrialRequestApiKey
+        - OnlineTrialRequestUsagePlan
+      Properties:
+        KeyId: !Ref OnlineTrialRequestApiKey
+        KeyType: API_KEY
+        UsagePlanId: !Ref OnlineTrialRequestUsagePlan
     OnlineTrialRequestCloudWatchLogsRole:
       Type: AWS::IAM::Role
       Properties:
@@ -631,6 +644,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: APIGatewayAWSProxyExecPolicy
             PolicyDocument:
@@ -670,6 +684,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialLifecycleStopEc2Policy
             PolicyDocument:
@@ -680,13 +695,15 @@
                     - ec2:StopInstances
                   Resource:
                     - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
-          - PolicyName: OnlineTrialLifecycleDescribeEc2Policy
+          - PolicyName: OnlineTrialLifecycleEc2Policy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
                 - Effect: Allow
                   Action:
                     - ec2:DescribeInstanceStatus
+                    - ec2:CreateTags
+                    - ec2:DescribeTags
                   Resource:
                     - "*"
           - PolicyName: OnlineTrialLifecycleCloudformationPolicy
@@ -782,6 +799,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialStackBuilderExecPolicy
             PolicyDocument:
@@ -881,6 +899,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
@@ -991,6 +1010,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialAPIDomainHandlerPolicy
             PolicyDocument:
