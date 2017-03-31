@@ -9,7 +9,6 @@ To test that the API built as expected:
 
 # Current Manual steps required:
 
-- Once this stack is deployed, you must associate the created api key with the usage plan.
 - Manually deleting the stack (via the console or cli) will leave the usage plan behind, this will need deleting.
 - If the stack has just been built for testing, update the R53 entry currently in the SYSTEMS account (request{stage}.trial.alfresco.com) to point to the cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard.
 - The SSH key required for the OpsWorksGitSSHKey is in our password management system under AWS -> Online Trials. Get the file from the "Private key (csv)" entry and either paste it into the correct parameter when building a new stack or updating the SSH key setting under the correct OpsWorks stack.

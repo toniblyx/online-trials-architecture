@@ -33,8 +33,6 @@ else
     aws cloudformation delete-stack --stack-name $STACK_NAME
     if [ $? -ne 0 ]; then
         logError "Stack deletion failed."
-    else
-        DELETE_STATUS="INITIATED"
     fi
 
     separator

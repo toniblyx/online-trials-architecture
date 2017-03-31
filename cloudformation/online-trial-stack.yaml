@@ -33,6 +33,10 @@
       Description: The name of an existing EC2 KeyPair
       Type: AWS::EC2::KeyPair::KeyName
       Default: salty-trials
+    TrialLifetimeInDays:
+      Description: How long in days before the instance is stopped
+      Type: Number
+      Default: 14
     SystemsRole:
       Description: The arn of the role to access in the systems account to create R53 entries
       Type: String
@@ -68,6 +72,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
     TrialRoute53DomainNameGenerator:
@@ -78,6 +83,8 @@
         Code:
           ZipFile: |
             from __future__ import print_function
+            from datetime import datetime, timedelta
+            import os
             import cfnresponse
             import random
             import string
@@ -86,13 +93,20 @@
               try:
                 if event['RequestType'] == 'Create':
                   name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-                  print("{0} has been generated".format(name))
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, { 'DomainName' : name })
+                  responseData = {}
+                  responseData['DomainName'] = name
+                  d = datetime.today() + timedelta(days=int(os.environ['days_to_stop']))
+                  responseData['ExpiryDate'] = str(d.date())
+                  print(responseData)
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
                 print("{0}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            days_to_stop: !Ref TrialLifetimeInDays
         Handler: index.handler
         Role: !GetAtt TrialRoute53DomainNameGenIamRole.Arn
         Runtime: python2.7
@@ -126,6 +140,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialSubnetIdAllocatorPolicy
@@ -212,6 +227,8 @@
           - Key: Stage
             Value:
               Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksDeploymentStage"
+          - Key: ExpiryDate
+            Value: !GetAtt TrialRoute53DomainNameGenCustomResource.ExpiryDate
         UserData:
           Fn::Base64:
             Fn::Join:
@@ -262,13 +279,6 @@
                   }
                   EOF
                   echo "File prepped for first chef run."
-                - export AWS_ACCESS_KEY_ID=
-                - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksAccessKey"
-                - "\n"
-                - export AWS_SECRET_ACCESS_KEY=
-                - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksSecretKey"
-                - "\n"
-                - !Sub |
                   echo "Running Chef for the first time"
                   chef-client -z -j run-chef-client.json
                   RESULT=$?
@@ -391,6 +401,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialRoute53RecordSetAccessPolicy
@@ -496,6 +507,7 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
+                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialOpsWorkRegisterHandlerPolicy
