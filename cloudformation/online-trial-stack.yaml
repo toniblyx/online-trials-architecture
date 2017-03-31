@@ -279,13 +279,6 @@
                   }
                   EOF
                   echo "File prepped for first chef run."
-                - export AWS_ACCESS_KEY_ID=
-                - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksAccessKey"
-                - "\n"
-                - export AWS_SECRET_ACCESS_KEY=
-                - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksSecretKey"
-                - "\n"
-                - !Sub |
                   echo "Running Chef for the first time"
                   chef-client -z -j run-chef-client.json
                   RESULT=$?

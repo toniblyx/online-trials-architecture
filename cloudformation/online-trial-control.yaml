@@ -1066,34 +1066,6 @@
         DomainName: !If [UseDomainName, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
-    OnlineTrialOpsWorksUser:
-      Type: AWS::IAM::User
-      Properties:
-        Policies:
-        - PolicyName: OpsWorksAccess
-          PolicyDocument:
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - opsworks:DescribeStacks
-                  - opsworks:DescribeStackProvisioningParameters
-                  - opsworks:DescribeInstances
-                  - opsworks:AssignInstance
-                Resource: "*"
-              - Effect: Allow
-                Action:
-                  - iam:CreateGroup
-                  - iam:CreateUser
-                  - iam:AddUserToGroup
-                  - iam:PutUserPolicy
-                  - iam:CreateAccessKey
-                Resource: "*"
-    OnlineTrialOpsWorksKeys:
-      Type: AWS::IAM::AccessKey
-      DependsOn:
-        - OnlineTrialOpsWorksUser
-      Properties:
-        UserName: !Ref OnlineTrialOpsWorksUser
     OnlineTrialOpsWorksEc2Role:
       Type: AWS::IAM::Role
       Properties:
@@ -1103,7 +1075,7 @@
             - Effect: Allow
               Principal:
                 Service:
-                  - opsworks.amazonaws.com
+                  - ec2.amazonaws.com
               Action:
                 - sts:AssumeRole
         Policies:
@@ -1115,7 +1087,9 @@
                   Action:
                     - opsworks:DescribeStackProvisioningParameters
                     - opsworks:DescribeStacks
+                    - opsworks:DescribeInstances
                     - opsworks:RegisterInstance
+                    - opsworks:AssignInstance
                   Resource: 
                     - "*"
           - PolicyName: OnlineTrialOpsWorksEc2Policy
@@ -1229,13 +1203,3 @@
       Value: !Ref Stage
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksDeploymentStage"
-    OpsWorksAccessKey:
-      Description: The access key to call the OpsWorks register command
-      Value: !Ref OnlineTrialOpsWorksKeys
-      Export:
-        Name: !Sub "${AWS::StackName}-OpsWorksAccessKey"
-    OpsWorksSecretKey:
-      Description: The secret key to call the OpsWorks register command
-      Value: !GetAtt OnlineTrialOpsWorksKeys.SecretAccessKey
-      Export:
-        Name: !Sub "${AWS::StackName}-OpsWorksSecretKey"
