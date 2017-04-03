@@ -44,6 +44,10 @@
       Type: String
       Description: A security group to add to the OpsWorks layer in addition to the default.
       Default: sg-01f5d264
+    RepoPrivateToken:
+      Type: String
+      Description: A private token needed to make an api call to get the trial stack template
+      Default: 3ZzyDD1C-ietMxzy3z9x
     Stage:
       Type: String
       Description: The stage we are deploying to; either test or prod.
@@ -701,7 +705,7 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - ec2:DescribeInstanceStatus
+                    - ec2:DescribeInstances
                     - ec2:CreateTags
                     - ec2:DescribeTags
                   Resource:
@@ -715,9 +719,28 @@
                     - cloudformation:DescribeStacks
                     - cloudformation:ListStacks
                     - cloudformation:DeleteStack
-                    - cloudformation:UpdateStack
                   Resource:
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*"
+                    - "*"
+          - PolicyName: OnlineTrialLifecycleDeleteStackPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - iam:DeleteRolePolicy
+                    - lambda:DeleteFunction
+                    - lambda:InvokeFunction
+                  Resource:
+                    - "*"
+          - PolicyName: OnlineTrialLifeCycleTerminateInstancePolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:TerminateInstances
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
     OnlineTrialLifecycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -811,7 +834,7 @@
                     - cloudformation:ListStacks
                     - cloudformation:DescribeStacks
                   Resource:
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*"
+                    - "*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -926,23 +949,23 @@
             import boto3
 
             def handler(event, context):
-              branch = 'develop' if os.environ['stage'] == 'test' else 'master'
-              url = os.environ['url'].format(branch)
-              filename = "online-trial-stack-{0}.yaml".format(branch)
-              client = boto3.client('s3')
               # if the event is create or update, add a new version of the template to the bucket
               # if the event is delete, do nothing as the EmptyBucketLambda will handle it
               try:
+                branch = 'develop' if os.environ['stage'] == 'test' else 'master'
+                url = os.environ['url'].format(branch, os.environ['private_token'])
+                print(url)
+                filename = "online-trial-stack-{0}.yaml".format(branch)
+                client = boto3.client('s3')
                 if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
-                  result = urllib.urlopen(url)
-                  data = result.read()
+                  response = urllib.urlopen(url)
+                  payload = json.load(response)
+                  data = payload['content'].decode('base64')
                   with open("/tmp/{0}".format(filename), "wb") as f:
                     f.write(data)
                   # Upload the file to s3
                   with open("/tmp/{0}".format(filename), "rb") as r:
-                    client.upload_fileobj(
-                      r, os.environ['bucket_name'], filename
-                    )
+                    client.upload_fileobj(r, os.environ['bucket_name'], filename)
                 
                 cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
@@ -951,8 +974,9 @@
         Environment:
           Variables:
             bucket_name: !Ref OnlineTrialStackTemplateBucket
+            private_token: !Ref RepoPrivateToken
             stage: !Ref Stage
-            url: "https://git.alfresco.com/alfresco_devops/online-trials-architecture/blob/{0}/cloudformation/online-trial-stack.yaml"
+            url: "https://git.alfresco.com/api/v4/projects/118/repository/files?file_path=cloudformation/online-trial-stack.yaml&ref={}&private_token={}"
         Handler: index.handler
         Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
         Runtime: python2.7
