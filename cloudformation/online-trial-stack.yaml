@@ -270,6 +270,9 @@
                           "ssl_databag_item" : "saltydog_com"
                         }
                     },
+                    "cwlogs": {
+                      "region": "${AWS::Region}"
+                    }
                     "rsyslog" : {
                         "server_ip" : "syslogp"
                     },
