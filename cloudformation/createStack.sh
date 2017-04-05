@@ -74,6 +74,11 @@ else
       if [[ "$STATUS" == "CREATE_COMPLETE" ]]; then
         logInfo "Stack successfully created"
         separator
+        URL=$(aws cloudformation describe-stacks \
+        --stack-name $STACK_NAME \
+        --query "Stacks[*].Outputs[?OutputKey == 'OnlineTrialsTestEndPoint'].OutputValue" \
+        --output text)
+        echo "url=$URL" > apiurl.properties
         exit 0
       else
         monitorStatus "$STATUS"
