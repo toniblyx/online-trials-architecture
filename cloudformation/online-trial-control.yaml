@@ -879,6 +879,7 @@
         Environment:
           Variables:
             stack_count: !Ref MinimumStackCount
+            stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket
             template_bucket_key: !Sub "online-trial-stack-${Stage}.yaml"
         Handler: index.handler
@@ -968,18 +969,19 @@
                 filename = "online-trial-stack-{0}.yaml".format(branch)
                 client = boto3.client('s3')
                 if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                  print("Event type {} ".format(event['RequestType']))
                   response = urllib.urlopen(url)
                   payload = json.load(response)
                   data = payload['content'].decode('base64')
-                  with open("/tmp/{0}".format(filename), "wb") as f:
+                  with open("/tmp/{}".format(filename), "wb") as f:
                     f.write(data)
                   # Upload the file to s3
-                  with open("/tmp/{0}".format(filename), "rb") as r:
+                  with open("/tmp/{}".format(filename), "rb") as r:
                     client.upload_fileobj(r, os.environ['bucket_name'], filename)
                 
                 cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                print("{0}\n".format(err))
+                print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:

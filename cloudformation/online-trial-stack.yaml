@@ -102,7 +102,7 @@
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                print("{0}\n".format(err))
+                print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:
@@ -179,14 +179,14 @@
 
                   subnets = []
                   for subnet in response['Subnets']:
-                    print("Adding {0} to subnet list".format(subnet['SubnetId']))
+                    print("Adding {} to subnet list".format(subnet['SubnetId']))
                     subnets.append(subnet['SubnetId'])
 
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SubnetId' : random.choice(subnets)})
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                print("{0}\n".format(err))
+                print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:
@@ -449,7 +449,7 @@
                     {
                       'Action': action,
                       'ResourceRecordSet': {
-                        'Name': "{0}.trial.alfresco.com.".format(os.environ['name']),
+                        'Name': "{}.trial.alfresco.com.".format(os.environ['name']),
                         'Type': 'A',
                         'TTL': 300,
                         'ResourceRecords': [
@@ -467,7 +467,7 @@
                 )
                 cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                print("{0}\n".format(err))
+                print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:
@@ -544,7 +544,7 @@
                   )
                   for instance in response['Instances']:
                     if instance['Hostname'] == os.environ['hostname']:
-                      print("Instance found - {0}".format(instance['InstanceId']))
+                      print("Instance found - {}".format(instance['InstanceId']))
                       deregisterResp = client.deregister_instance(
                         InstanceId=instance['InstanceId']
                       )
@@ -555,7 +555,7 @@
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
-                print("{0}\n".format(err))
+                print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:
