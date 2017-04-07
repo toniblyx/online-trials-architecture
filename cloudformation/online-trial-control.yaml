@@ -843,6 +843,11 @@
                   Action:
                     - ec2:DescribeTags
                     - ec2:CreateTags
+                    - ec2:DescribeKeyPairs
+                    - ec2:DescribeImages
+                    - ec2:RunInstances
+                    - ec2:DescribeInstances
+                    - ec2:ModifyInstanceAttribute
                   Resource:
                     - "*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
@@ -855,6 +860,24 @@
                   Resource:
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
+          - PolicyName: OnlineTrialStackBuilderIamPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - iam:CreateRole
+                    - iam:PutRolePolicy
+                    - iam:GetRole
+                    - iam:DeleteRolePolicy
+                    - iam:PassRole
+                    - iam:DeleteRole
+                    - lambda:CreateFunction
+                    - lambda:GetFunctionConfiguration
+                    - lambda:DeleteFunction
+                    - lambda:InvokeFunction
+                  Resource:
+                    - "*"
     OnlineTrialScheduledStackBuilder:
       Type: AWS::Lambda::Function
       # should depend on opswork app
@@ -881,7 +904,6 @@
             stack_count: !Ref MinimumStackCount
             stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket
-            template_bucket_key: !Sub "online-trial-stack-${Stage}.yaml"
         Handler: index.handler
         Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
         Runtime: nodejs4.3
