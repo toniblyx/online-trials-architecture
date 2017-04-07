@@ -238,7 +238,7 @@
                   Action:
                     - cloudformation:DescribeStacks
                   Resource:
-                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*/*"
+                    - "*"
                 - Effect: Allow
                   Action:
                     - ec2:DescribeTags
@@ -833,7 +833,16 @@
                     - cloudformation:CreateStack
                     - cloudformation:ListStacks
                     - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+          - PolicyName: OnlineTrialStackBuilderEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
                     - ec2:DescribeTags
+                    - ec2:CreateTags
                   Resource:
                     - "*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy

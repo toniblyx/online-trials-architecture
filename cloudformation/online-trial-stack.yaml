@@ -272,7 +272,7 @@
                     },
                     "cwlogs": {
                       "region": "${AWS::Region}"
-                    }
+                    },
                     "rsyslog" : {
                         "server_ip" : "syslogp"
                     },
