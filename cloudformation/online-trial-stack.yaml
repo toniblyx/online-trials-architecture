@@ -1,6 +1,24 @@
 ---
   AWSTemplateFormatVersion: 2010-09-09
   Description: "Online Trial Stack. Everything needed to deploy a single trial stack"
+  Metadata:
+    AWS::CloudFormation::Interface:
+      ParameterGroups:
+        - Label:
+            default: Trial Environment Configuration
+          Parameters:
+            - TrialAMIId
+            - TrialInstanceType
+            - TrialSSHKey
+            - TrialLifetimeInDays
+        - Label:
+            default: Control Architecture Configuration
+          Parameters:
+            - ControlArchitectureName
+        - Label:
+            default: Lambda Configurations
+          Parameters:
+            - SystemsRole
   Parameters:
     ControlArchitectureName:
       Description: The name of the Online Trial Control architecture cloudformation stack
@@ -24,11 +42,6 @@
         - m4.xlarge
         - m4.2xlarge
         - m4.4xlarge
-    TrialInstanceSecurityGroupId:
-      Description: A security group id assigned to the ec2 instance
-      Type: String
-      Default: sg-01f5d264
-      MinLength: 1
     TrialSSHKey:
       Description: The name of an existing EC2 KeyPair
       Type: AWS::EC2::KeyPair::KeyName
@@ -43,11 +56,6 @@
       Default: arn:aws:iam::823267158217:role/OktaAdminRole
       AllowedValues:
         - arn:aws:iam::823267158217:role/OktaAdminRole
-    VPCID:
-      Description: The current VPC ID that all trials are deployed into
-      Type: String
-      Default: vpc-80b606e5
-      MinLength: 1
   Resources:
     TrialRoute53DomainNameGenIamRole:
       Type: AWS::IAM::Role
@@ -72,7 +80,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
     TrialRoute53DomainNameGenerator:
@@ -140,7 +147,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialSubnetIdAllocatorPolicy
@@ -190,7 +196,9 @@
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
         Environment:
           Variables:
-            vpc_id: !Ref VPCID
+            vpc_id:
+              Fn::ImportValue:
+                !Sub "${ControlArchitectureName}-OnlineTrialsVPCId"
         Handler: index.handler
         Role: !GetAtt TrialSubnetIdAllocatorIamRole.Arn
         Runtime: python2.7
@@ -214,7 +222,7 @@
         InstanceType: !Ref TrialInstanceType
         KeyName: !Ref TrialSSHKey
         SecurityGroupIds:
-          - !Ref TrialInstanceSecurityGroupId
+          - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksLayerSecurityGroups"
         SourceDestCheck: true
         SubnetId: !GetAtt TrialSubnetIdAllocatorCustomResource.SubnetId
         Tags:
@@ -404,7 +412,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialRoute53RecordSetAccessPolicy
@@ -501,7 +508,7 @@
               Action:
                 - sts:AssumeRole
         Policies:
-          - PolicyName: TrialOpsWorlsRegisterLoggingPolicy
+          - PolicyName: TrialOpsWorksRegisterLoggingPolicy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
@@ -510,7 +517,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
           - PolicyName: TrialOpsWorkRegisterHandlerPolicy
@@ -537,21 +543,27 @@
 
             def handler(event, context):
               try:
-                if event['RequestType'] == 'Delete':
-                  client = boto3.client('opsworks')
+                client = boto3.client('opsworks')
+                eventType = event['RequestType']
+                if eventType == 'Create' or eventType == 'Delete':
                   response = client.describe_instances(
                     StackId=os.environ['stack_id']
                   )
+                  data = {}
                   for instance in response['Instances']:
                     if instance['Hostname'] == os.environ['hostname']:
                       print("Instance found - {}".format(instance['InstanceId']))
-                      deregisterResp = client.deregister_instance(
-                        InstanceId=instance['InstanceId']
-                      )
-                      print("Instance deregistered from stack")
-                      break
+                      if eventType == 'Create':
+                        data['InstanceId'] = instance['InstanceId']
+                        break
+                      elif eventType == 'Delete':
+                        deregisterResp = client.deregister_instance(
+                          InstanceId=instance['InstanceId']
+                        )
+                        print("Instance deregistered from stack")
+                        break
                       
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
@@ -572,6 +584,90 @@
         - TrialOpsWorksRegisterHandler
       Properties:
         ServiceToken: !GetAtt TrialOpsWorksRegisterHandler.Arn
+    TrialOpsWorksInitialiseInstanceCookbooksIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - TrialEc2Instance
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialOpsWorksInitInstanceCookbookLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - "arn:aws:logs:*:*:*"
+          - PolicyName: TrialOpsWorksInitInstanceCookbookPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:CreateDeployment
+                  Resource:
+                    - "*"
+    TrialOpsWorksInitInstanceCookbookHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialOpsWorksInitialiseInstanceCookbooksIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+
+            def handler(event, context):
+              try:
+                if event['RequestType'] == 'Create':
+                  client = boto3.client('opsworks')
+                  response = client.create_deployment(
+                    StackId=os.environ['stack_id'],
+                    InstanceIds=[
+                      os.environ['instance_id']
+                    ],
+                    Command={
+                      'Name': 'update_custom_cookbooks'
+                    },
+                    Comment="Updating cookbooks on {}".format(os.environ['instance_id'])
+                  )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
+                else:
+                  print("Event is {}, doing nothing".format(event['RequestType']))
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            stack_id:
+              Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksStackId"
+            instance_id: !GetAtt TrialOpsWorksRegisterHandlerCustomResource.InstanceId
+        Handler: index.handler
+        Role: !GetAtt TrialOpsWorksInitialiseInstanceCookbooksIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    TrialOpsWorksInitInstanceCookbookCustomResource:
+      Type: Custom::OpsWorksCookbookInstaller
+      DependsOn:
+        - TrialOpsWorksInitInstanceCookbookHandler
+      Properties:
+        ServiceToken: !GetAtt TrialOpsWorksInitInstanceCookbookHandler.Arn
   Outputs:
     Type:
       Description: The type of stack this is.

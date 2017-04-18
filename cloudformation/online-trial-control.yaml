@@ -1,6 +1,39 @@
 ---
   AWSTemplateFormatVersion: 2010-09-09
   Description: "Control Architecture for allocating and managing Online Trials"
+  Metadata:
+    AWS::CloudFormation::Interface:
+      ParameterGroups:
+        - Label:
+            default: Api Gateway Configuration
+          Parameters:
+            - APICertArn
+            - APIDomainName
+            - CreatedBy
+            - Stage
+            - URI
+        - Label:
+            default: Central Lambda Bucket Configuration
+          Parameters:
+            - LambdaBucket
+        - Label:
+            default: OpsWorks Configuration
+          Parameters:
+            - OpsWorksGitRepo
+            - OpsWorksGitRepoBranch
+            - OpsWorksGitSSHKey
+            - OpsWorksLayerSecurityGroups
+        - Label:
+            default: Lifecycle Handler Configuration
+          Parameters:
+            - DaysToStop
+        - Label:
+            default: Stack Builder Configuration
+          Parameters:
+            - MinimumStackCount
+            - OnlineTrialsSubnetId
+            - OnlineTrialsVPCId
+            - RepoPrivateToken
   Parameters:
     APICertArn:
       Type: String
@@ -135,12 +168,12 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
                   Action:
                     - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
                   Resource:
                     - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
                 - Effect: Allow
@@ -155,26 +188,22 @@
         - OnlineTrialAssignStackDynamoDbTable
       Properties:
         Code:
-          ZipFile: >
-            exports.handler = (event, context, callback) => {
-              // TODO implement and deploy in s3 bucket
-              // Get message from read queue, if any
-              // Call Api within the allocated stack to add user using Marketo details
-              // If successful call Marketo to update lead as success which triggers email
-              // Success
-              callback(null, 'Hello from Lambda');
-            };
+          S3Bucket: !Ref LambdaBucket
+          S3Key: AssignUserHandler.zip
         Environment:
           Variables:
-            api_host: https://453-liz-762.mktorest.com/
+            api_host: https://453-liz-762.mktorest.com
             assign_stack_table: !Ref OnlineTrialAssignStackDynamoDbTable
             client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
             client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
-        Handler: index.handler
+            username: admin
+            password: alfrescodevops
+        Handler: assign_user_handler.handler
+        MemorySize: 256 
         Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
-        Runtime: nodejs4.3
-        Timeout: 10
+        Runtime: python2.7
+        Timeout: 30
     OnlineTrialAssignUserScheduleRule:
       Type: AWS::Events::Rule
       DependsOn:
@@ -221,12 +250,12 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
                   Action:
                     - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
                   Resource:
                     - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
                 - Effect: Allow
@@ -309,7 +338,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -394,7 +422,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource:
                     - "arn:aws:logs:*:*:*"
                 - Effect: Allow
@@ -438,7 +465,7 @@
             };
         Environment:
           Variables:
-            api_host: https://453-liz-762.mktorest.com/
+            api_host: https://453-liz-762.mktorest.com
             client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
             client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
             sqs_url: !Ref OnlineTrialRequestSQS
@@ -656,7 +683,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: APIGatewayAWSProxyExecPolicy
             PolicyDocument:
@@ -696,7 +722,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialLifecycleStopEc2Policy
             PolicyDocument:
@@ -955,7 +980,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
@@ -976,6 +1000,7 @@
           ZipFile: |
             from __future__ import print_function
             import json
+            import uuid
             import os
             import cfnresponse
             import urllib
@@ -990,6 +1015,7 @@
                 print(url)
                 filename = "online-trial-stack-{0}.yaml".format(branch)
                 client = boto3.client('s3')
+                physicalResourceId = str(uuid.uuid1())
                 if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
                   print("Event type {} ".format(event['RequestType']))
                   response = urllib.urlopen(url)
@@ -1000,8 +1026,10 @@
                   # Upload the file to s3
                   with open("/tmp/{}".format(filename), "rb") as r:
                     client.upload_fileobj(r, os.environ['bucket_name'], filename)
-                
-                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
               except Exception as err:
                 print("{}\n".format(err))
                 cfnresponse.send(event, context, cfnresponse.FAILED, {})
@@ -1015,6 +1043,12 @@
         Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
         Runtime: python2.7
         Timeout: 10
+    OnlineTrialTemplatesBucketFillerCustomResource:
+      Type: Custom::BucketFiller
+      DependsOn:
+        - OnlineTrialTemplateBucketFillerHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialTemplateBucketFillerHandler.Arn
     OnlineTrialTemplatesBucketLifeCycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -1035,12 +1069,6 @@
       Properties:
         ServiceToken: !GetAtt OnlineTrialTemplatesBucketLifeCycleHandler.Arn
         BucketName: !Ref OnlineTrialStackTemplateBucket
-    OnlineTrialTemplatesBucketFillerCustomResource:
-      Type: Custom::BucketFiller
-      DependsOn:
-        - OnlineTrialTemplateBucketFillerHandler
-      Properties:
-        ServiceToken: !GetAtt OnlineTrialTemplateBucketFillerHandler.Arn
     OnlineTrialAPICustomDomainNameIamRole:
       Type: AWS::IAM::Role
       DependsOn:
@@ -1068,7 +1096,6 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                    - logs:DeleteLogGroup
                   Resource: "arn:aws:logs:*:*:*"
           - PolicyName: OnlineTrialAPIDomainHandlerPolicy
             PolicyDocument:
@@ -1238,6 +1265,11 @@
     OnlineTrialsRequestDomainName:
       Description: The pretty domain name to hand over to marketing.
       Value: !If [UseDomainName, !Sub "https://${APIDomainName}/${URI}", !Sub "https://request${Stage}.trial.alfresco.com/${URI}"]
+    OnlineTrialsVPCId:
+      Description: The VPC for all trial stacks to deploy into
+      Value: !Ref OnlineTrialsVPCId
+      Export:
+        Name: !Sub "${AWS::StackName}-OnlineTrialsVPCId"
     TopicArn:
       Description: The ARN of the Topic tied to the API gateway. Needed as a header to make a request (topicarn=)
       Value: !Ref OnlineTrialRequestSNSTopic
@@ -1261,3 +1293,8 @@
       Value: !Ref Stage
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksDeploymentStage"
+    OpsWorksLayerSecurityGroups:
+      Description: The Security Group ID used for all Trial Instances
+      Value: !Ref OpsWorksLayerSecurityGroups
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksLayerSecurityGroups"
