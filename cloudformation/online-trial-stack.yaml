@@ -28,7 +28,7 @@
     TrialAMIId:
       Description: The AMI Id of the Trial Image
       Type: AWS::EC2::Image::Id
-      Default: ami-0b71c21d
+      Default: ami-b60b9ba0
       MinLength: 1
     TrialInstanceType:
       Description: The type of EC2 instance to deploy the AMI to
