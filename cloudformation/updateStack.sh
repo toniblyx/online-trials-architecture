@@ -19,12 +19,19 @@ STACK_NAME="online-trial-control-test"
 # otherwise we execute the change set
 S3_TEMPLATE_NAME="$3.yaml"
 aws cloudformation create-change-set --stack-name $STACK_NAME --template-body file://online-trial-control.yaml --parameters file://parameters-update.json --change-set-name trial-update --capabilities $CAPABILITIES
+
 # give the changeset time to be created
 separator
 logInfo "Waiting for the change set to be created...."
-sleep 60
-RESULT=$(aws cloudformation describe-change-set --stack-name $STACK_NAME --change-set-name trial-update --query "Status" --output text)
-if [ "$RESULT" == "FAILED" ]; then
+STATUS=$(aws cloudformation describe-change-set --stack-name $STACK_NAME --change-set-name trial-update --query "Status" --output text)
+while [ "$STATUS" == "CREATE_IN_PROGRESS" ]
+do
+  sleep 10
+  logInfo "Waiting for the change set to be created...."
+  STATUS=$(aws cloudformation describe-change-set --stack-name $STACK_NAME --change-set-name trial-update --query "Status" --output text)
+done
+
+if [ "$STATUS" == "FAILED" ]; then
   separator
   logInfo "No updates to execute on $STACK_NAME. Exiting"
   aws cloudformation delete-change-set --stack-name $STACK_NAME --change-set-name trial-update
