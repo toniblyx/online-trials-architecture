@@ -97,6 +97,10 @@
       AllowedValues:
         - test
         - prod
+    UpdatedTime:
+      Type: String
+      Description: The time in ms that this stack was updated
+      Default: " "
     URI:
       Type: String
       Description: The URI that all requests for trials will be made to.
@@ -1059,6 +1063,7 @@
         - OnlineTrialTemplateBucketFillerHandler
       Properties:
         ServiceToken: !GetAtt OnlineTrialTemplateBucketFillerHandler.Arn
+        UpdatedTime: !Ref UpdatedTime
     OnlineTrialTemplatesBucketLifeCycleHandler:
       Type: AWS::Lambda::Function
       DependsOn:

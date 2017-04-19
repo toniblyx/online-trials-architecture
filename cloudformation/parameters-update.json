@@ -6,5 +6,9 @@
   {
     "ParameterKey":"OpsWorksGitSSHKey",
     "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"UpdatedTime",
+    "ParameterValue":"@@UPDATED_TIME@@"
   }
 ]

@@ -9,10 +9,19 @@ usage() {
 }
 BAMBOO_WORKING_DIR=$4
 source $BAMBOO_WORKING_DIR/common.func
+
 # Essential Variables
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2
 STACK_NAME="online-trial-control-test"
+
+# Replace placeholders
+CURRENT_TIME=date +%s
+separator
+logInfo "Replacing placeholders in parameters-update.json"
+sed -i'.bak' "
+    s/@@UPDATED_TIME@@/$CURRENT_TIME/g
+" parameters-update.json
 
 # We need to create a change set for the current stack, describe the change set and check the response for the "STATUS"
 # if the status was "FAILED" this was because there we no changes to execute, so we delete the change set then exit early
