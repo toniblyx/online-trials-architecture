@@ -181,6 +181,16 @@
                     - dynamodb:UpdateItem
                   Resource:
                     - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialAssignStackDynamoDbTable}"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeTags
+                  Resource:
+                    - "*"
     OnlineTrialAssignUserHandler:
       Type: AWS::Lambda::Function
       DependsOn:

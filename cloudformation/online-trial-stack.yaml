@@ -103,7 +103,7 @@
                   responseData = {}
                   responseData['DomainName'] = name
                   d = datetime.today() + timedelta(days=int(os.environ['days_to_stop']))
-                  responseData['ExpiryDate'] = str(d.date())
+                  responseData['ExpiryDate'] = d.date().strftime('%d-%m-%Y')
                   print(responseData)
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
                 else:
