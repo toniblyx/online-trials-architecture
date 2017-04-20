@@ -213,6 +213,7 @@
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
             username: admin
             password: alfrescodevops
+        FunctionName: !Sub "AssignUserHandler-${Stage}"
         Handler: assign_user_handler.handler
         MemorySize: 256 
         Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
@@ -385,6 +386,7 @@
           Variables:
             topic_arn: !Ref OnlineTrialRequestSNSTopic
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
+        FunctionName: !Sub "FulfillmentHandler-${Stage}"
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialFulfillmentIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -453,8 +455,6 @@
       DependsOn:
         - OnlineTrialRequestHandlerIamRole
       Properties:
-        # FunctionName not supplied to allow update of this resource
-        # Code wont be inline, it will refer to a file in an s3 bucket once written
         Code:
           ZipFile: > 
             exports.handler = (event, context, callback) => {
@@ -484,6 +484,7 @@
             client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
             sqs_url: !Ref OnlineTrialRequestSQS
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
+        FunctionName: !Sub "TrialRequestHandler-${Stage}"
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -508,6 +509,7 @@
             sqs_read_url: !Ref OnlineTrialRequestSQS
             sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
             stage: !Ref Stage
+        FunctionName: !Sub "InstanceRequestHandler-${Stage}"
         Handler: index.handler
         Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
         Runtime: nodejs4.3
@@ -800,6 +802,7 @@
           Variables:
             stack_type: Trial
             days_to_stop: !Ref DaysToStop
+        FunctionName: !Sub "TrialLifecycleHandler-${Stage}"
         Handler: triallifecycle.handler
         MemorySize: 512
         Role: !GetAtt OnlineTrialLifecycleIamRole.Arn
@@ -943,6 +946,7 @@
             stack_count: !Ref MinimumStackCount
             stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket
+        FunctionName: !Sub "TrialStackBuilder-${Stage}"
         Handler: index.handler
         Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
         Runtime: nodejs4.3
@@ -1145,6 +1149,7 @@
           Variables:
             certificate_arn: !Ref APICertArn
             domain_name: !If [UseDomainName, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
+        FunctionName: !Sub "ApiDomainName-${Stage}"
         Handler: api_domain_name.handler
         Role: !GetAtt OnlineTrialAPICustomDomainNameIamRole.Arn
         Runtime: python2.7
@@ -1270,6 +1275,81 @@
         Shortname: !Sub "otalf-${Stage}"
         StackId: !Ref OnlineTrialOpsWorksStack
         Type: custom
+    OnlineTrialLambdaUpdaterIamProfile:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialLambdaUpdaterPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:GetFunction
+                    - lambda:UpdateFunctionCode
+                  Resource: 
+                    - "*"
+          - PolicyName: OnlineTrialLambdaUpdaterLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: "arn:aws:logs:*:*:*"
+    OnlineTrialLambdaUpdater:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialLambdaUpdaterIamProfile
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import boto3
+            import os
+            
+            def handler(event, context):
+              # update the function code relating to the key name
+              try:
+                client = boto3.client('lambda')
+                for record in event['Records']:
+                  filename = record['s3']['object']['key']
+                  function_name = filename.split(".")[0]
+                  response = {}
+                  try:
+                    response = client.get_function(FunctionName=function_name)
+                  except:
+                    print("Function {} not found, skipping".format(function_name))
+                    continue
+                  
+                  response = client.update_function_code(
+                    FunctionName=function_name,
+                    S3Bucket=os.environ['bucket_name'],
+                    S3Key=filename
+                  )
+                  print("Function {} updated".format(function_name))
+              except Exception as err:
+                print("{}\n".format(err))
+        Environment:
+          Variables:
+            bucket_name: !Ref LambdaBucket
+        FunctionName: !Sub "LambdaUpdater-${Stage}"
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialLambdaUpdaterIamProfile.Arn
+        Runtime: python2.7
+        Timeout: 10
   Outputs:
     DistributionName:
       Description: The CloudFront distribution name to point a R53 entry to.
