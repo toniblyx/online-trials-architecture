@@ -16,7 +16,7 @@ export AWS_SECRET_ACCESS_KEY=$2
 STACK_NAME="online-trial-control-test"
 
 # Replace placeholders
-CURRENT_TIME=date +%s
+CURRENT_TIME=$(date +%s)
 separator
 logInfo "Replacing placeholders in parameters-update.json"
 sed -i'.bak' "
