@@ -213,7 +213,7 @@
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
             username: admin
             password: alfrescodevops
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "AssignUserHandler-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "AssignUserHandler-${Stage}"]
         Handler: assign_user_handler.handler
         MemorySize: 256 
         Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
@@ -386,7 +386,7 @@
           Variables:
             topic_arn: !Ref OnlineTrialRequestSNSTopic
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "FulfillmentHandler-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "FulfillmentHandler-${Stage}"]
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialFulfillmentIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -484,7 +484,7 @@
             client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
             sqs_url: !Ref OnlineTrialRequestSQS
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "TrialRequestHandler-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialRequestHandler-${Stage}"]
         Handler: index.handler # this will need changing once we switch to Lambda
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: nodejs4.3 # Change to python when we start writing the code
@@ -509,7 +509,7 @@
             sqs_read_url: !Ref OnlineTrialRequestSQS
             sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
             stage: !Ref Stage
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "InstanceRequestHandler-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "InstanceRequestHandler-${Stage}"]
         Handler: index.handler
         Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
         Runtime: nodejs4.3
@@ -802,7 +802,7 @@
           Variables:
             stack_type: Trial
             days_to_stop: !Ref DaysToStop
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "TrialLifecycleHandler-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialLifecycleHandler-${Stage}"]
         Handler: triallifecycle.handler
         MemorySize: 512
         Role: !GetAtt OnlineTrialLifecycleIamRole.Arn
@@ -946,7 +946,7 @@
             stack_count: !Ref MinimumStackCount
             stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "TrialStackBuilder-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialStackBuilder-${Stage}"]
         Handler: index.handler
         Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
         Runtime: nodejs4.3
@@ -1149,7 +1149,7 @@
           Variables:
             certificate_arn: !Ref APICertArn
             domain_name: !If [CreatedByBamboo, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "ApiDomainName-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "ApiDomainName-${Stage}"]
         Handler: api_domain_name.handler
         Role: !GetAtt OnlineTrialAPICustomDomainNameIamRole.Arn
         Runtime: python2.7
@@ -1345,7 +1345,7 @@
         Environment:
           Variables:
             bucket_name: !Ref LambdaBucket
-        FunctionName: !If [CreatedByBamboo, !Ref AWS::NoValue, !Sub "LambdaUpdater-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "LambdaUpdater-${Stage}"]
         Handler: index.handler
         Role: !GetAtt OnlineTrialLambdaUpdaterIamProfile.Arn
         Runtime: python2.7
