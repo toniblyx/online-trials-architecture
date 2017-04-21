@@ -362,8 +362,7 @@
                     - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
                 - Effect: Allow
                   Action:
-                    - dynamodb:GetItem
-                    - dynamodb:BatchGetItem # just in case
+                    - dynamodb:BatchGetItem
                   Resource:
                     - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
     OnlineTrialFulfillmentHandler:
@@ -456,27 +455,8 @@
         - OnlineTrialRequestHandlerIamRole
       Properties:
         Code:
-          ZipFile: > 
-            exports.handler = (event, context, callback) => {
-              // TODO implement and deploy in s3 bucket
-              // const message = JSON.parse(event.Records[0].Sns.Message);
-              console.log(message);
-              // Get the message from SNS (as above)
-              // if the "source" key in the original request is online trials
-              //  Get the lead id property from the message
-              //  make a request to Marketo with the lead id
-              //  Get the lead details
-              //  If successful, add entry to trial_requests dynamo table
-              //    Place full request onto queue (env var)
-              //    All OK
-              //  else retry n times
-              //  if n times has passed
-              //    request failed, notify IM solution, store unfulfilled entry in DB
-              //  else goto success
-              // else pass the request directly to the trial stack builder lambda
-              // with the appropriate details (TBD)
-              callback(null, 'Hello from Lambda');
-            };
+            S3Bucket: !Ref LambdaBucket
+            S3Key: TrialRequestHandler.zip
         Environment:
           Variables:
             api_host: https://453-liz-762.mktorest.com
@@ -485,35 +465,28 @@
             sqs_url: !Ref OnlineTrialRequestSQS
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialRequestHandler-${Stage}"]
-        Handler: index.handler # this will need changing once we switch to Lambda
+        Handler: TRH.lambda_handler
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
-        Runtime: nodejs4.3 # Change to python when we start writing the code
-        Timeout: 10
+        Runtime: python2.7
+        Timeout: 90
     OnlineTrialInstanceRequestHandler:
       Type: AWS::Lambda::Function
       DependsOn:
         - OnlineTrialInstanceRequestSQS
       Properties:
         Code:
-          ZipFile: >
-            exports.handler = (event, context, callback) => {
-              // TODO implement and deploy in s3 bucket
-              // Get message from read queue, if any
-              // Find unallocated stack
-              // Mark it as allocated
-              // Pass original message to publish queue with stack id
-              callback(null, 'Hello from Lambda');
-            };
+          S3Bucket: !Ref LambdaBucket
+          S3Key: InstanceRequestHandler.zip
         Environment:
           Variables:
             sqs_read_url: !Ref OnlineTrialRequestSQS
             sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
             stage: !Ref Stage
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "InstanceRequestHandler-${Stage}"]
-        Handler: index.handler
+        Handler: InstanceRequestLambdaHandler.lambda_handler
         Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
-        Runtime: nodejs4.3
-        Timeout: 10
+        Runtime: python2.7
+        Timeout: 30
     OnlineTrialInstanceRequestScheduleRule:
       Type: AWS::Events::Rule
       DependsOn:
@@ -922,35 +895,22 @@
                     - "*"
     OnlineTrialScheduledStackBuilder:
       Type: AWS::Lambda::Function
-      # should depend on opswork app
       DependsOn:
         - OnlineTrialStackBuilderIamRole
       Properties:
         Code:
-          ZipFile: >
-            exports.handler = (event, context, callback) => {
-              // Check the payload received (in the event object)
-              // if the "source" is "aws.events"
-              //  Check we have at least n stacks running that are unassigned (tag)
-              //  if we have less then n stacks
-              //    Work out how many stacks we need to build to get to our Limit
-              //    Get the template from the bucket based on the stage
-              //    Loop around to build each stack successfully
-              //    make sure we are tagging the stacks as unassigned
-              //  else ALL OK
-              // else build a stack
-              callback(null, 'Hello from Lambda');
-            };
+          S3Bucket: !Ref LambdaBucket
+          S3Key: TrialStackBuilder.zip
         Environment:
           Variables:
             stack_count: !Ref MinimumStackCount
             stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialStackBuilder-${Stage}"]
-        Handler: index.handler
+        Handler: TrialStackBuilderLambda.lambda_handler
         Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
-        Runtime: nodejs4.3
-        Timeout: 10
+        Runtime: python2.7
+        Timeout: 30
     OnlineTrialStackBuilderScheduleRule:
       Type: AWS::Events::Rule
       DependsOn:
@@ -1299,6 +1259,15 @@
                     - lambda:UpdateFunctionCode
                   Resource: 
                     - "*"
+          - PolicyName: OnlineTrialLambdaUpdaterBucketPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource:
+                    - !Sub "arn:aws:s3:::${LambdaBucket}/*"
           - PolicyName: OnlineTrialLambdaUpdaterLoggingPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -1324,22 +1293,23 @@
               # update the function code relating to the key name
               try:
                 client = boto3.client('lambda')
-                for record in event['Records']:
-                  filename = record['s3']['object']['key']
-                  function_name = "{}-{}".format(filename.split(".")[0], os.environ['stage'])
-                  response = {}
-                  try:
-                    response = client.get_function(FunctionName=function_name)
-                  except:
-                    print("Function {} not found, skipping".format(function_name))
-                    continue
-                  
-                  response = client.update_function_code(
-                    FunctionName=function_name,
-                    S3Bucket=os.environ['bucket_name'],
-                    S3Key=filename
-                  )
-                  print("Function {} updated".format(function_name))
+                if 'Records' in event:
+                  for record in event['Records']:
+                    filename = record['s3']['object']['key']
+                    function_name = "{}-{}".format(filename.split(".")[0], os.environ['stage'])
+                    response = {}
+                    try:
+                      response = client.get_function(FunctionName=function_name)
+                    except:
+                      print("Function {} not found, skipping".format(function_name))
+                      continue
+                    
+                    response = client.update_function_code(
+                      FunctionName=function_name,
+                      S3Bucket=os.environ['bucket_name'],
+                      S3Key=filename
+                    )
+                    print("Function {} updated".format(function_name))
               except Exception as err:
                 print("{}\n".format(err))
         Environment:
