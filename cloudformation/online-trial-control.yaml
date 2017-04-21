@@ -1326,7 +1326,7 @@
                 client = boto3.client('lambda')
                 for record in event['Records']:
                   filename = record['s3']['object']['key']
-                  function_name = filename.split(".")[0]
+                  function_name = "{}-{}".format(filename.split(".")[0], os.environ['stage'])
                   response = {}
                   try:
                     response = client.get_function(FunctionName=function_name)
@@ -1345,6 +1345,7 @@
         Environment:
           Variables:
             bucket_name: !Ref LambdaBucket
+            stage: !Ref Stage
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "LambdaUpdater-${Stage}"]
         Handler: index.handler
         Role: !GetAtt OnlineTrialLambdaUpdaterIamProfile.Arn
