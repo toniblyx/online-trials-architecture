@@ -81,7 +81,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
     TrialRoute53DomainNameGenerator:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -148,7 +148,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: TrialSubnetIdAllocatorPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -413,7 +413,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: TrialRoute53RecordSetAccessPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -518,7 +518,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: TrialOpsWorkRegisterHandlerPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -610,7 +610,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: TrialOpsWorksInitInstanceCookbookPolicy
             PolicyDocument:
               Version: 2012-10-17

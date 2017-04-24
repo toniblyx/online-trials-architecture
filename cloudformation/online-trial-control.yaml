@@ -173,7 +173,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
                 - Effect: Allow
                   Action:
                     - sqs:ReceiveMessage
@@ -266,7 +266,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
                 - Effect: Allow
                   Action:
                     - sqs:ReceiveMessage
@@ -286,9 +286,13 @@
                 - Effect: Allow
                   Action:
                     - ec2:DescribeTags
-                    - ec2:CreateTags
                   Resource:
                     - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
     OnlineTrialRequestDynamoDbTable:
       Type: AWS::DynamoDB::Table
       DependsOn:
@@ -354,7 +358,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
                 - Effect: Allow
                   Action:
                     - sns:Publish
@@ -438,7 +442,7 @@
                     - logs:CreateLogStream
                     - logs:PutLogEvents
                   Resource:
-                    - "arn:aws:logs:*:*:*"
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
                 - Effect: Allow
                   Action:
                     - sqs:SendMessage
@@ -672,7 +676,8 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: APIGatewayAWSProxyExecPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -711,7 +716,8 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialLifecycleStopEc2Policy
             PolicyDocument:
               Version: 2012-10-17
@@ -728,10 +734,14 @@
                 - Effect: Allow
                   Action:
                     - ec2:DescribeInstances
-                    - ec2:CreateTags
                     - ec2:DescribeTags
                   Resource:
                     - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
           - PolicyName: OnlineTrialLifecycleCloudformationPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -739,21 +749,29 @@
                 - Effect: Allow
                   Action:
                     - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
                     - cloudformation:ListStacks
                     - cloudformation:DeleteStack
                   Resource:
-                    - "*"
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialLifecycleDeleteStackPolicy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
                 - Effect: Allow
                   Action:
-                    - iam:DeleteRolePolicy
                     - lambda:DeleteFunction
                     - lambda:InvokeFunction
                   Resource:
-                    - "*"
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+                - Effect: Allow
+                  Action:
+                    - iam:DeleteRolePolicy
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
           - PolicyName: OnlineTrialLifeCycleTerminateInstancePolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -838,18 +856,23 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialStackBuilderExecPolicy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
                 - Effect: Allow
                   Action:
-                    - cloudformation:CreateStack
                     - cloudformation:ListStacks
                     - cloudformation:DescribeStacks
                   Resource:
                     - "*"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:CreateStack
+                  Resource:
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialStackBuilderEc2Policy
             PolicyDocument:
               Version: 2012-10-17
@@ -857,15 +880,18 @@
                 - Effect: Allow
                   Action:
                     - ec2:DescribeTags
-                    - ec2:CreateTags
                     - ec2:DescribeKeyPairs
                     - ec2:DescribeImages
-                    - ec2:RunInstances
                     - ec2:DescribeInstances
-                    - ec2:ModifyInstanceAttribute
-                    - ec2:TerminateInstances
                   Resource:
                     - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:ModifyInstanceAttribute
+                    - ec2:TerminateInstances
+                    - ec2:RunInstances
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -888,12 +914,16 @@
                     - iam:DeleteRolePolicy
                     - iam:PassRole
                     - iam:DeleteRole
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+                - Effect: Allow
+                  Action:
                     - lambda:CreateFunction
                     - lambda:GetFunctionConfiguration
                     - lambda:DeleteFunction
                     - lambda:InvokeFunction
                   Resource:
-                    - "*"
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
     OnlineTrialScheduledStackBuilder:
       Type: AWS::Lambda::Function
       DependsOn:
@@ -959,14 +989,19 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
               Statement:
                 - Effect: Allow
                   Action:
-                    - s3:* # TODO: Needs to only be delete bucket, list versions and delete versions
+                    - s3:DeleteBucket
+                    - s3:ListBucketVersions
+                    - s3:DeleteObject
+                    - s3:DeleteObjectVersion
+                    - s3:PutObject
                   Resource:
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
                     - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
@@ -1076,7 +1111,8 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
           - PolicyName: OnlineTrialAPIDomainHandlerPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -1173,13 +1209,21 @@
               Statement:
                 - Effect: Allow
                   Action:
-                    - iam:CreateGroup
-                    - iam:CreateUser
-                    - iam:AddUserToGroup
-                    - iam:PutUserPolicy
                     - iam:CreateAccessKey
                   Resource:
                     - "*"
+                - Effect: Allow
+                  Action:
+                    - iam:CreateUser
+                    - iam:AddUserToGroup
+                    - iam:PutUserPolicy
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:user/*"
+                - Effect: Allow
+                  Action:
+                    - iam:CreateGroup
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:group/*"
     OnlineTrialOpsWorksInstanceProfile:
       Type: AWS::IAM::InstanceProfile
       DependsOn:
@@ -1200,13 +1244,7 @@
           SshKey: !Join [ "\n" , !Ref OpsWorksGitSSHKey ]
           Type: git
           Url: !Ref OpsWorksGitRepo
-        DefaultInstanceProfileArn:
-          Fn::Join:
-            - ''
-            - - "arn:aws:iam::"
-              - !Ref "AWS::AccountId"
-              - ":instance-profile/"
-              - !Ref OnlineTrialOpsWorksInstanceProfile
+        DefaultInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${OnlineTrialOpsWorksInstanceProfile}"
         DefaultOs: Custom
         DefaultRootDeviceType: ebs
         DefaultSubnetId: !Ref OnlineTrialsSubnetId
@@ -1222,13 +1260,7 @@
       Properties:
         AutoAssignElasticIps: false
         AutoAssignPublicIps: true
-        CustomInstanceProfileArn:
-          Fn::Join:
-            - ''
-            - - "arn:aws:iam::"
-              - !Ref "AWS::AccountId"
-              - ":instance-profile/"
-              - !Ref OnlineTrialOpsWorksInstanceProfile
+        CustomInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${OnlineTrialOpsWorksInstanceProfile}"
         CustomSecurityGroupIds:
           - !Ref OpsWorksLayerSecurityGroups
         EnableAutoHealing: true
@@ -1259,7 +1291,7 @@
                     - lambda:GetFunction
                     - lambda:UpdateFunctionCode
                   Resource: 
-                    - "*"
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
           - PolicyName: OnlineTrialLambdaUpdaterBucketPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -1278,7 +1310,8 @@
                     - logs:CreateLogGroup
                     - logs:CreateLogStream
                     - logs:PutLogEvents
-                  Resource: "arn:aws:logs:*:*:*"
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
     OnlineTrialLambdaUpdater:
       Type: AWS::Lambda::Function
       DependsOn:
