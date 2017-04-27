@@ -33,7 +33,6 @@
             - MinimumStackCount
             - OnlineTrialsSubnetId
             - OnlineTrialsVPCId
-            - RepoPrivateToken
   Parameters:
     AdminUsername:
       Type: String
@@ -93,10 +92,6 @@
       Type: String
       Description: A security group to add to the OpsWorks layer in addition to the default.
       Default: sg-01f5d264
-    RepoPrivateToken:
-      Type: String
-      Description: A private token needed to make an api call to get the trial stack template
-      Default: 3ZzyDD1C-ietMxzy3z9x
     Stage:
       Type: String
       Description: The stage we are deploying to; either test or prod.
@@ -382,24 +377,16 @@
         - OnlineTrialRequestDynamoDbTable
       Properties:
         Code:
-          ZipFile: >
-            exports.handler = (event, context, callback) => {
-              // TODO implement and deploy in s3 bucket
-              // Read from the trial request table for an unfulfilled request
-              // Create an object to post to the SNS Topic that contains two keys
-              // "source" and "lead". Source is "onlinetrial", "lead" is the lead id from the item
-              // Publish that object/message onto the SNS Topic
-              // (Fulfillment is satisfied by the trial request handler, not this handler)
-              callback(null, 'Hello from Lambda');
-            };
+          S3Bucket: !Ref LambdaBucket
+          S3Key: FulfillmentHandler.zip
         Environment:
           Variables:
             topic_arn: !Ref OnlineTrialRequestSNSTopic
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "FulfillmentHandler-${Stage}"]
-        Handler: index.handler # this will need changing once we switch to Lambda
+        Handler: FulfillmentHandlerLambda.lambda_handler
         Role: !GetAtt OnlineTrialFulfillmentIamRole.Arn
-        Runtime: nodejs4.3 # Change to python when we start writing the code
+        Runtime: python2.7
         Timeout: 10
     OnlineTrialFulfillmentScheduleRule:
       Type: AWS::Events::Rule
@@ -408,7 +395,7 @@
       Properties:
         # Name not provided to allow updates
         Description: Polls a DB table for unfulfilled requests and publishes them to SNS
-        ScheduleExpression: cron(0/10 * * * ? *) # Runs every 10 minutes
+        ScheduleExpression: cron(0/2 * * * ? *) # Runs every 2 minutes
         State: ENABLED
         Targets:
           - Arn: !GetAtt OnlineTrialFulfillmentHandler.Arn
@@ -1034,8 +1021,8 @@
               # if the event is delete, do nothing as the EmptyBucketLambda will handle it
               try:
                 branch = 'develop' if os.environ['stage'] == 'test' else 'master'
-                url = os.environ['url'].format(branch, os.environ['private_token'])
-                filename = "online-trial-stack-{0}.yaml".format(branch)
+                url = os.environ['url'].format(branch)
+                filename = "online-trial-stack-{}.yaml".format(branch)
                 eventType = event['RequestType']
                 physicalResourceId = str(uuid.uuid1()) if eventType == 'Create' else event['PhysicalResourceId']
                 if eventType == 'Create' or eventType == 'Update':
@@ -1043,9 +1030,8 @@
                   print("Event type {} ".format(eventType))
                   response = urllib.urlopen(url)
                   payload = json.load(response)
-                  data = payload['content'].decode('base64')
                   with open("/tmp/{}".format(filename), "wb") as f:
-                    f.write(data)
+                    f.write(payload)
                   # Upload the file to s3
                   with open("/tmp/{}".format(filename), "rb") as r:
                     client.upload_fileobj(r, os.environ['bucket_name'], filename)
@@ -1061,7 +1047,7 @@
             bucket_name: !Ref OnlineTrialStackTemplateBucket
             private_token: !Ref RepoPrivateToken
             stage: !Ref Stage
-            url: "https://git.alfresco.com/api/v4/projects/118/repository/files?file_path=cloudformation/online-trial-stack.yaml&ref={}&private_token={}"
+            url: "https://raw.githubusercontent.com/Alfresco/online-trials-architecture/{}/cloudformation/online-trial-stack.yaml"
         Handler: index.handler
         Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
         Runtime: python2.7
