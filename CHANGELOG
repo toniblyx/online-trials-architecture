@@ -1,0 +1,158 @@
+# Beta
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/e7959174b2346a5f4801444c432ae486e8cafab8">view commit &bull;</a> Add readme.md</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5a0bd6f4c9695f2102caf192911982994442bfaa">view commit &bull;</a> TAA-756 - API Gateway created using CFN- No Lambda integration yet.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/1d0fee90b8564070702f64e3400c4301ddd7af3c">view commit &bull;</a> TAA-756 - Update to README.md for testing a fresh API.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to createStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to createStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Deve:
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to createStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Develop - Fix to deleteStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/402e93fcbf0077dd668fc75a11df2e5ed86aa56b">view commit &bull;</a> Devel:
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/cfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Develop - Fix to deleteStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/402e93fcbf0077dd668fc75a11df2e5ed86aa56b">view commit &bull;</a> Develop - Another script fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/20768c3df52b3ae46cfc84f334726d8b9cb2c1f4">view commit &bull;</a> Develo:
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to createStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Develop - Fix to deleteStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/402e93fcbf0077dd668fc75a11df2e5ed86aa56b">view commit &bull;</a> Develop - Another script fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/20768c3df52b3ae46cfc84f334726d8b9cb2c1f4">view commit &bull;</a> Develop - Fix to delete script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/c7784e016e9498bac74f71d6ddf9ba6821049916">view commit &bull;</a> Develop - Fix to script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to createStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to pipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteStack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Develop - Fix to deleteStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/402e93fcbf0077dd668fc75a11df2e5ed86aa56b">view commit &bull;</a> Develop - Another script fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/20768c3df52b3ae46cfc84f334726d8b9cb2c1f4">view commit &bull;</a> Develop - Fix to delete script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/c7784e016e9498bac74f71d6ddf9ba6821049916">view commit &bull;</a> Develop - Fix to script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/da99e0105eaa91e3b4c60192cb14e150398e6572">view commit &bull;</a> TAA-801 - Added SQS to Architecture.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ddd87aa27fd2ffc79e770861978b916e49aa6c08">view commit &bull;</a> Merge branch 'TAA-801' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/f4aeea1e9865dca9bebb619c0e326b59e9f6bd30">view commit &bull;</a> TAA-806 - Adding Lambda, 1 minute schedule and new SQS</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b916c2fa5495c105474ac7cc7471aad5ca97e2f6">view commit &bull;</a> Merge branch 'TAA-806' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b7bcb1c0ad6a18ce54325eecad31b107ef7da8f9">view commit &bull;</a> TAA-760 - Lambda that will add user to Alfresco stack and ping Marketo.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/78110afa229be8f794fb37e825fd745db59bb202">view commit &bull;</a> Merge branch 'TAA-760' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/526c440002a1306f79b7704f960e6e54cc58af5d">view commit &bull;</a> TAA-802 - Trial Lifecycle Handler Lambda</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/8d777e42a428efb2d9894fe0db0b07d1c1301fea">view commit &bull;</a> Merge branch 'TAA-802' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/9780c69eb1c4b35caaf147730ca5e2bb3f4a733d">view commit &bull;</a> TAA-757 - Scheduled Stack builder Lambda</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5640b24604a7125149954d747d1144c5a4cb911b">view commit &bull;</a> Merge branch 'TAA-757' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/503b2373e4f2d83d216ccb8252d53d6088fe565c">view commit &bull;</a> TAA-763 - Refined Permissions. Trial Request Dynamo Table</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/958351c67dd688fb210af48b088fb8761de5bc00">view commit &bull;</a> Merge branch 'TAA-763' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a3f7bc4fd42eed5305018bc0cf10396c1c87ee67">view commit &bull;</a> TAA-809 - Added Dynamo table  for tracking assigned stacks.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/bcafdf020a31d7a8f083aaca9a150393d1af6b81">view commit &bull;</a> Merge branch 'TAA-809' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/be67e8e1d5b5b9bcf09fe7fbe7dbd15ee3fabc00">view commit &bull;</a> TAA-803 - Fulfillment Handler Lambda added.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/285825be5a93a556e7d4e59c019383b123b9559f">view commit &bull;</a> Merge branch 'TAA-803' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a61f4aeba8ee7d15ca6d0ed324c28d693435baf0">view commit &bull;</a> TAA-805 - Bucket added for CloudFormation Templates of Online Trials.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/dbaa170c9af850b2bb75cce278759a54fb477daa">view commit &bull;</a> TAA-805 - Fix typo in template</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6fa4ad46ea1215a3828dce9894a7d17b7141c6e4">view commit &bull;</a> Merge branch 'TAA-805' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/703b3bb68bd7e5952f3a151999e08c9cc9c6aa43">view commit &bull;</a> Update online-trial-control.yaml</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/0f4ca472eb9eaf1472e66086f45887b35bf743f3">view commit &bull;</a> TAA-804 - Custom resource for adding templates to bucket</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/2d5ef72b2a8cb49c9cf8a9dab4d9f94d2651281b">view commit &bull;</a> Merge branch 'TAA-804' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/c070c662f272959478d1fdae82f036838fac8a17">view commit &bull;</a> Develop - update to timeout</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/07a438be9050fe17f07aed2f3cc0b7c05e363e7d">view commit &bull;</a> TAA-807 - Custom domain name added</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/def3ae74c47a59904d89380569c7c2f1d4f9eaac">view commit &bull;</a> Merge branch 'TAA-807' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/366824e6b87a43e0edbc602d58a182670902620b">view commit &bull;</a> Develop build fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/500d89f07d9dfae1323502c68b2e41bcf795ebb7">view commit &bull;</a> TAA-770 - Opsworks Stack and Layer</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/7d046e2f83a812dbbff4fb5fa8e02ee5f3d3e679">view commit &bull;</a> TAA-770 - Removal of SSH key. Added more manual steps.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/2388a307e1eb6c880502a7d63d26bdee639a604f">view commit &bull;</a> Merge branch 'TAA-770' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/4735b3495c2bbbf0a342352edce450eeb4eeb01d">view commit &bull;</a> TAA-774 - Updates to permissions. Extra Output added.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ce80ba2c17e45995ec42b8443a492fcd4854247">view commit &bull;</a> Merge branch 'TAA-774' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3d674b7f8784c8e46bced1fc6ab0955f0f758af3">view commit &bull;</a> TAA-774 - Initial work on Trial Stacks</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/0dba62c5ee3a42bd2cf12c3e130920ac11736144">view commit &bull;</a> Develop - Fixes to build failures.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/84d830c3d450872b164417852c8f68982ba0b805">view commit &bull;</a> Merge branch 'develop' into TAA-774</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ee3d341d4bf27d51706b458e15788e4a0d4016d1">view commit &bull;</a> TAA-774 - Trial stack deployed as code</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ebd09b9adb2af451f6e3749d43c0757453629900">view commit &bull;</a> TAA-774 - Fix to cloudformation permissions</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/84db2fcc28158a6d7c98172ba5e33832debf32e8">view commit &bull;</a> Merge branch 'TAA-774' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/faa76559d7d988aa3c6af3d1741ebe9567c91fd1">view commit &bull;</a> Develop - fix to build scripts</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/0a397e4f78b81f5605cbd59741ccf6ae15ebd739">view commit &bull;</a> Develop - Fix permissions on files</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/22b3a51cbea25403f170ab88266d36d084c8f031">view commit &bull;</a> Develop - Fix to control template</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/07660f20f3a306b152dbbd9118b296419a7e1055">view commit &bull;</a> Develop - Fix to update script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a0abd9b9a32e8513287d7af69f2352d5f56f7fb8">view commit &bull;</a> Develop - Fix to create script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/dd69c75ae777d94c83f108a98a4c01d97957d863">view commit &bull;</a> Develop - Fix to create script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/456322ee65953321c0b94ac4beb03ba7aa9ae49c">view commit &bull;</a> Develop - fix to create stack script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/4ff27a7aaeb107555be7eaa390669fb9174345aa">view commit &bull;</a> Develop - Update fixes</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/fca1690bf648d8290f036cabde054c3e29e247a3">view commit &bull;</a> Fixes to some IAM permissions</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/f26f0bef10020538450952bd6eda8ba29a17f160">view commit &bull;</a> Template fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5238e2828c6cd1a5ad71d78450ee1c65216b4c43">view commit &bull;</a> Merge branch 'iamfixes' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b6842b721922d5a5e9c32874f4d5f12293c8b7e3">view commit &bull;</a> UsagePlanKey resource added</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/51a46bb902322b11ea89d7b96bbabd5c3f75d128">view commit &bull;</a> Removal of keys from stack</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/e5fef2bafffd7b46084819b99594da48abcb786f">view commit &bull;</a> Merge branch 'usageplankey' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6a587334e132c6ca996ab6d0bf41a4f2ebe85754">view commit &bull;</a> TAA-821 - Fixes to support Lambda</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/c4b1e42ef3b785f570405ef468395fed4a906453">view commit &bull;</a> Merge branch 'TAA-821' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/bd5734031970cdcee6abdb947fe0fb94f3253f36">view commit &bull;</a> TAA-821 - Support for TrialLifecycleHandler Lambda</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/cc97af281af48b659e14fc53edfc9235b4728171">view commit &bull;</a> Merge branch 'TAA-821' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5567cf5b29b57e5eb5f1d07f0c4218de27721432">view commit &bull;</a> TAA-775 - Support for Cloudwatch logging</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/75d6f6ba0e834fdfd77e44090a654bddabb9e5cf">view commit &bull;</a> Merge branch 'TAA-775' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b0e8a1f9b284a8abbd55624814b36cca2926f544">view commit &bull;</a> TAA-794 - Template fixes for Pipeline</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3e4ab44b783efb33e8da8347bdd49edb99d61ebf">view commit &bull;</a> TAA-794 - Permission Fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b4592977ce61a07bec04973866fe0a1cc346d268">view commit &bull;</a> Merge branch 'TAA-794' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09b323820eba18fb47c8a9b1f085d450046ecaf0">view commit &bull;</a> TAA-820 - Changes to support TrialStackBuilder Lambda</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/eadd5f90429c99c1ea918ac9d176d7caa6e6215d">view commit &bull;</a> Merge branch 'TAA-820' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a684a466b069ebee074805527660252beeb8fe24">view commit &bull;</a> TAA-820 - Permission fixes for Trial Stack Builder</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/0a2b0bd977bea48252ca3003041ad46262b53579">view commit &bull;</a> Merge branch 'TAA-820' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ec9dcb0590f948753e9a3b10751e052220fdcdd6">view commit &bull;</a> TAA-819 - Fixes to templates to support Lambdas</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/d6746c231c8ee38618a7e1358d36491c70010b5d">view commit &bull;</a> amiupdate - new tr<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/e7959174b2346a5f4801444c432ae486e8cafab8">view commit &bull;</a> Add readme.md</li>
+
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5a0bd6f4c9695f2102caf192911982994442bfaa">view commit &bull;</a> TAA-756 - API Gate
+way created using CFN- No Lambda integration yet.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/1d0fee90b8564070702f64e3400c4301ddd7af3c">view commit &bull;</a> TAA-756 - Update t
+o README.md for testing a fresh API.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/25ae3fe8b622cf49a31aaccbd16b54df92737b4d">view commit &bull;</a> Merge branch 'TAA-
+756' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5be627fa57393089180d4fbd3d1b0bf3ff900cfd">view commit &bull;</a> TAA-799 - Creating
+ of SNS and Lambda. Some pipeline work.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/6ff8998d5850b64aa6d9191d7afe90c8071c7e45">view commit &bull;</a> TAA-799 - Correct
+stack name for updating.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/a5f982d6d588c7d43d303ba3b9b45a3cf57c5f90">view commit &bull;</a> Merge branch 'TAA-
+799' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/5829ed10630a069151e376d8652829d97727f845">view commit &bull;</a> Develop - Fix to c
+reateStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/09597fb7176e45322de81de8acd1da86aaf41f49">view commit &bull;</a> Develop - Fix to p
+ipeline scripts. Update to template usage plan workaround</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/3751c5852344060e782a7c63633cf2dafbf24589">view commit &bull;</a> Develop - deleteSt
+ack.sh now deleting usage plan left over</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ea20615bad68b2c64c8bffa1b26c333999cb752f">view commit &bull;</a> Develop - Fix to d
+eleteStack.sh</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/402e93fcbf0077dd668fc75a11df2e5ed86aa56b">view commit &bull;</a> Develop - Another
+script fix</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/20768c3df52b3ae46cfc84f334726d8b9cb2c1f4">view commit &bull;</a> Develop - Fix to d
+elete script</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/c7784e016e9498bac74f71d6ddf9ba6821049916">view commit &bull;</a> Develop - Fix to s
+cript</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/da99e0105eaa91e3b4c60192cb14e150398e6572">view commit &bull;</a> TAA-801 - Added SQ
+S to Architecture.</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/ddd87aa27fd2ffc79e770861978b916e49aa6c08">view commit &bull;</a> Merge branch 'TAA-
+801' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/f4aeea1e9865dca9bebb619c0e326b59e9f6bd30">view commit &bull;</a> TAA-806 - Adding L
+ambda, 1 minute schedule and new SQS</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b916c2fa5495c105474ac7cc7471aad5ca97e2f6">view commit &bull;</a> Merge branch 'TAA-
+806' into 'develop'</li>
+<li> <a href="http://github.com/Alfresco/online-trials-architecture/commit/b7bcb1c0ad6a18ce54325eecad31b107ef7da8f9">view commit &bull;</a> TAA-760</li>
