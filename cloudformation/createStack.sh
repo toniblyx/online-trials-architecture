@@ -2,17 +2,13 @@
 
 # This script will create a copy of the online trial architecture, testing
 # that the template can be created from scratch.
-# Bamboo variables needed are:
-# Aws Access access key ${bamboo.aws_access_key_id}
-# Secret access key ${bamboo.secret_access_password}
-# Stack name ${bamboo.stackName}-${bamboo.planRepository.branchName}-${bamboo.buildNumber}
 
 usage() {
-  echo "Usage: createStack.sh <access_key_id> <secret_access_key> <stack_name>"
+  echo "Usage: createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname> <password>"
   exit 1
 }
 
-if [ $# -lt 3 ]; then
+if [ $# -lt 6 ]; then
   usage
 else
   BAMBOO_WORKING_DIR=$4
@@ -41,7 +37,9 @@ else
   separator
   logInfo "Replacing placeholders in parameters.json"
   sed -i'.bak' "
-      s/@@STACK_NAME@@/$STACK_NAME/g
+      s/@@STACK_NAME@@/$STACK_NAME/g;
+      s/@@USERNAME@@/$5/g;
+      s/@@PASSWORD@@/$6/g
   " parameters.json
 
   # Validate the template

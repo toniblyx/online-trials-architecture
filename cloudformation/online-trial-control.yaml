@@ -35,6 +35,12 @@
             - OnlineTrialsVPCId
             - RepoPrivateToken
   Parameters:
+    AdminUsername:
+      Type: String
+      Description: The username of the admin user needed to make API calls to each trial stack.
+    AdminPassword:
+      Type: String
+      Description: The password of the admin user needed to make API calls to each trial stack.
     APICertArn:
       Type: String
       Description: The ARN of the certificate to use when creating a custom domain name for the API gateway
@@ -211,8 +217,8 @@
             client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
             client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
-            username: admin
-            password: alfrescodevops
+            username: !Ref AdminUsername
+            password: !Ref AdminPassword
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "AssignUserHandler-${Stage}"]
         Handler: assign_user_handler.handler
         MemorySize: 256 
@@ -934,6 +940,8 @@
           S3Key: TrialStackBuilder.zip
         Environment:
           Variables:
+            username: !Ref AdminUsername
+            password: !Ref AdminPassword
             stack_count: !Ref MinimumStackCount
             stage: !Ref Stage
             template_bucket_name: !Ref OnlineTrialStackTemplateBucket

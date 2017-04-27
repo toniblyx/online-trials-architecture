@@ -20,6 +20,12 @@
           Parameters:
             - SystemsRole
   Parameters:
+    AdminUsername:
+      Type: String
+      Description: The username of the admin user needed to make internal API calls
+    AdminPassword:
+      Type: String
+      Description: The password of the admin use rneeded to make internal API calls
     ControlArchitectureName:
       Description: The name of the Online Trial Control architecture cloudformation stack
       Type: String
@@ -349,7 +355,7 @@
                   if [[ "$RESULT" == 0 ]]; then
                     systemctl set-property snortd CPUShares=10 MemoryLimit=256M
                     /usr/local/bin/reload-snort.sh
-                    curl -L -u admin:alfrescodevops 'http://admin:alfrescodevops@localhost:8070/alfresco/service/slingshot/node/search?q=%40name%3A%22Project%20Meeting%20Minutes%22&lang=lucene&store=workspace%3A%2F%2FSpacesStore'
+                    curl -L -u ${AdminUsername}:${AdminPassword} 'http://${AdminUsername}:${AdminPassword}@localhost:8070/alfresco/service/slingshot/node/search?q=%40name%3A%22Project%20Meeting%20Minutes%22&lang=lucene&store=workspace%3A%2F%2FSpacesStore'
                     printf "MAILTO=\'\'\n*/5 * * * *\troot\t/usr/local/bin/monitor-services.sh" > /etc/cron.d/monitoring-services.cron
                   else
                     echo "Couldnt reach Alfresco within $TIMEOUT minutes. Exiting..."
