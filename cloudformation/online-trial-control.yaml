@@ -1045,7 +1045,6 @@
         Environment:
           Variables:
             bucket_name: !Ref OnlineTrialStackTemplateBucket
-            private_token: !Ref RepoPrivateToken
             stage: !Ref Stage
             url: "https://raw.githubusercontent.com/Alfresco/online-trials-architecture/{}/cloudformation/online-trial-stack.yaml"
         Handler: index.handler
