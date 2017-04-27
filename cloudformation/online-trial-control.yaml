@@ -1308,6 +1308,7 @@
                   Resource: 
                     - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
     OnlineTrialLambdaUpdater:
+      # Triggered by an s3 upload
       Type: AWS::Lambda::Function
       DependsOn:
         - OnlineTrialLambdaUpdaterIamProfile
