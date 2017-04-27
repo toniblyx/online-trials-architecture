@@ -1009,7 +1009,6 @@
         Code:
           ZipFile: |
             from __future__ import print_function
-            import json
             import uuid
             import os
             import cfnresponse
@@ -1029,7 +1028,7 @@
                   client = boto3.client('s3')
                   print("Event type {} ".format(eventType))
                   response = urllib.urlopen(url)
-                  payload = json.load(response)
+                  payload = response.read()
                   with open("/tmp/{}".format(filename), "wb") as f:
                     f.write(payload)
                   # Upload the file to s3
