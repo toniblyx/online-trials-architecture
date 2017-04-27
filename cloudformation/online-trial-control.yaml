@@ -41,6 +41,7 @@
     AdminPassword:
       Type: String
       Description: The password of the admin user needed to make API calls to each trial stack.
+      NoEcho: True
     APICertArn:
       Type: String
       Description: The ARN of the certificate to use when creating a custom domain name for the API gateway

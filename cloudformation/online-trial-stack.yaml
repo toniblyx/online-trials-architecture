@@ -26,6 +26,7 @@
     AdminPassword:
       Type: String
       Description: The password of the admin use rneeded to make internal API calls
+      NoEcho: True
     ControlArchitectureName:
       Description: The name of the Online Trial Control architecture cloudformation stack
       Type: String
