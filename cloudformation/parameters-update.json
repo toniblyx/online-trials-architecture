@@ -1,5 +1,13 @@
 [
   {
+    "ParameterKey":"AdminUsername",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"AdminPassword",
+    "UsePreviousValue": true
+  },
+  {
     "ParameterKey":"APIDomainName",
     "UsePreviousValue": true
   },
