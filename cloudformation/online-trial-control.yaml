@@ -33,14 +33,21 @@
             - MinimumStackCount
             - OnlineTrialsSubnetId
             - OnlineTrialsVPCId
+        - Label:
+            default: Sensitive Parameters
+          Parameters:
+            - AdminUsername
+            - AdminPassword
+            - MarketoSecret
   Parameters:
     AdminUsername:
       Type: String
       Description: The username of the admin user needed to make API calls to each trial stack.
+      NoEcho: true
     AdminPassword:
       Type: String
       Description: The password of the admin user needed to make API calls to each trial stack.
-      NoEcho: True
+      NoEcho: true
     APICertArn:
       Type: String
       Description: The ARN of the certificate to use when creating a custom domain name for the API gateway
@@ -70,6 +77,10 @@
       Description: The name of the bucket that contains the Lambdas to download
       MinLength: 8
       Default: online-trial-devops-lambda
+    MarketoSecret:
+      Type: String
+      Description: The client secret key needed for Marketo to make API calls
+      NoEcho: true
     MinimumStackCount:
       Type: Number
       Description: The minimum number of stacks we want to have running in our "pool".
@@ -211,7 +222,7 @@
             api_host: https://453-liz-762.mktorest.com
             assign_stack_table: !Ref OnlineTrialAssignStackDynamoDbTable
             client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
-            client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
+            client_secret: !Ref MarketoSecret
             sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
             username: !Ref AdminUsername
             password: !Ref AdminPassword
@@ -877,15 +888,16 @@
                     - ec2:DescribeKeyPairs
                     - ec2:DescribeImages
                     - ec2:DescribeInstances
+                    - ec2:ModifyInstanceAttribute
                   Resource:
                     - "*"
                 - Effect: Allow
                   Action:
-                    - ec2:ModifyInstanceAttribute
                     - ec2:TerminateInstances
                     - ec2:RunInstances
+                    - ec2:CreateTags
                   Resource:
-                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+                    - !Sub "arn:aws:ec2:${AWS::Region}:*:*"
           - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -1161,73 +1173,8 @@
         DomainName: !If [CreatedByBamboo, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
         RestApiId: !Ref OnlineTrialRequestAPI
         Stage: !Ref Stage
-    OnlineTrialOpsWorksEc2Role:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: 2012-10-17
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service:
-                  - ec2.amazonaws.com
-              Action:
-                - sts:AssumeRole
-        Policies:
-          - PolicyName: OnlineTrialOpsWorksRegistrationPolicy
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - opsworks:DescribeStackProvisioningParameters
-                    - opsworks:DescribeStacks
-                    - opsworks:DescribeInstances
-                    - opsworks:RegisterInstance
-                    - opsworks:AssignInstance
-                  Resource: 
-                    - "*"
-          - PolicyName: OnlineTrialOpsWorksEc2Policy
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - ec2:DescribeInstances
-                  Resource:
-                    - "*"
-          - PolicyName: OnlineTrialOpsWorksIamPolicy
-            PolicyDocument:
-              Version: 2012-10-17
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - iam:CreateAccessKey
-                  Resource:
-                    - "*"
-                - Effect: Allow
-                  Action:
-                    - iam:CreateUser
-                    - iam:AddUserToGroup
-                    - iam:PutUserPolicy
-                  Resource:
-                    - !Sub "arn:aws:iam::${AWS::AccountId}:user/*"
-                - Effect: Allow
-                  Action:
-                    - iam:CreateGroup
-                  Resource:
-                    - !Sub "arn:aws:iam::${AWS::AccountId}:group/*"
-    OnlineTrialOpsWorksInstanceProfile:
-      Type: AWS::IAM::InstanceProfile
-      DependsOn:
-        - OnlineTrialOpsWorksEc2Role
-      Properties:
-        Roles:
-          - !Ref OnlineTrialOpsWorksEc2Role
     OnlineTrialOpsWorksStack:
       Type: AWS::OpsWorks::Stack
-      DependsOn:
-        - OnlineTrialOpsWorksInstanceProfile
       Properties:
         ConfigurationManager:
           Name: Chef
@@ -1237,7 +1184,7 @@
           SshKey: !Join [ "\n" , !Ref OpsWorksGitSSHKey ]
           Type: git
           Url: !Ref OpsWorksGitRepo
-        DefaultInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${OnlineTrialOpsWorksInstanceProfile}"
+        DefaultInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/aws-opsworks-ec2-role" # default recommended by aws
         DefaultOs: Custom
         DefaultRootDeviceType: ebs
         DefaultSubnetId: !Ref OnlineTrialsSubnetId
@@ -1253,7 +1200,7 @@
       Properties:
         AutoAssignElasticIps: false
         AutoAssignPublicIps: true
-        CustomInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/${OnlineTrialOpsWorksInstanceProfile}"
+        CustomInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/aws-opsworks-ec2-role"
         CustomSecurityGroupIds:
           - !Ref OpsWorksLayerSecurityGroups
         EnableAutoHealing: true
@@ -1377,11 +1324,6 @@
       Value: !Ref OnlineTrialOpsWorksAlfrescoLayer
       Export:
         Name: !Sub "${AWS::StackName}-OpsWorksLayerId"
-    OpsWorksInstanceProfileName:
-      Description: The name of the instance profile to be associated with the EC2 instances
-      Value: !Ref OnlineTrialOpsWorksInstanceProfile
-      Export:
-        Name: !Sub "${AWS::StackName}-OpsWorksInstanceProfileName"
     OpsWorksDeploymentStage:
       Description: The Stage that the stacks are being deployed into
       Value: !Ref Stage

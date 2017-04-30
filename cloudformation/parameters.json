@@ -14,5 +14,9 @@
   {
     "ParameterKey":"AdminPassword",
     "ParameterValue":"@@PASSWORD@@"
+  },
+  {
+    "ParameterKey":"MarketoSecret",
+    "ParameterValue":"@@MARKETO_SECRET@@"
   }
 ]

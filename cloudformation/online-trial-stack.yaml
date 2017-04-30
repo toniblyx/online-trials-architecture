@@ -35,7 +35,7 @@
     TrialAMIId:
       Description: The AMI Id of the Trial Image
       Type: AWS::EC2::Image::Id
-      Default: ami-0b71c21d
+      Default: ami-32533724
       MinLength: 1
     TrialInstanceType:
       Description: The type of EC2 instance to deploy the AMI to
@@ -223,8 +223,7 @@
           Timeout: PT45M
           Count: 1
       Properties:
-        IamInstanceProfile:
-          Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksInstanceProfileName"
+        IamInstanceProfile: aws-opsworks-ec2-role
         ImageId: !Ref TrialAMIId
         InstanceType: !Ref TrialInstanceType
         KeyName: !Ref TrialSSHKey
@@ -286,7 +285,8 @@
                         }
                     },
                     "cwlogs": {
-                      "region": "${AWS::Region}"
+                      "region": "${AWS::Region}",
+                      "use_gzip_http_content_encoding": false
                     },
                     "rsyslog" : {
                         "server_ip" : "syslogp"
@@ -457,7 +457,7 @@
                   aws_session_token=role['Credentials']['SessionToken']
                 )
                 print("Cross account R53 client created OK")
-                action = 'UPSERT' if event['RequestType'] == 'Create' else 'DELETE'
+                action = 'DELETE' if event['RequestType'] == 'Delete' else 'UPSERT'
                 requestData = {
                   'Changes': [
                     {
@@ -562,15 +562,16 @@
                       print("Instance found - {}".format(instance['InstanceId']))
                       if eventType == 'Create':
                         data['InstanceId'] = instance['InstanceId']
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
                         break
                       elif eventType == 'Delete':
                         deregisterResp = client.deregister_instance(
                           InstanceId=instance['InstanceId']
                         )
                         print("Instance deregistered from stack")
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
                         break
                       
-                  cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
                 else:
                   cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
               except Exception as err:
