@@ -13,10 +13,6 @@
             - Stage
             - URI
         - Label:
-            default: Central Lambda Bucket Configuration
-          Parameters:
-            - LambdaBucket
-        - Label:
             default: OpsWorks Configuration
           Parameters:
             - OpsWorksGitRepo
@@ -72,11 +68,6 @@
         - 5
         - 7
         - 10
-    LambdaBucket:
-      Type: String
-      Description: The name of the bucket that contains the Lambdas to download
-      MinLength: 8
-      Default: online-trial-devops-lambda
     MarketoSecret:
       Type: String
       Description: The client secret key needed for Marketo to make API calls
@@ -215,8 +206,8 @@
         - OnlineTrialAssignStackDynamoDbTable
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: AssignUserHandler.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "AssignUserHandler-${Stage}.zip"
         Environment:
           Variables:
             api_host: https://453-liz-762.mktorest.com
@@ -388,8 +379,8 @@
         - OnlineTrialRequestDynamoDbTable
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: FulfillmentHandler.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "FulfillmentHandler-${Stage}.zip"
         Environment:
           Variables:
             topic_arn: !Ref OnlineTrialRequestSNSTopic
@@ -464,8 +455,8 @@
         - OnlineTrialRequestHandlerIamRole
       Properties:
         Code:
-            S3Bucket: !Ref LambdaBucket
-            S3Key: TrialRequestHandler.zip
+            S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+            S3Key: !Sub "TrialRequestHandler-${Stage}.zip"
         Environment:
           Variables:
             api_host: https://453-liz-762.mktorest.com
@@ -484,8 +475,8 @@
         - OnlineTrialInstanceRequestSQS
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: InstanceRequestHandler.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "InstanceRequestHandler-${Stage}.zip"
         Environment:
           Variables:
             sqs_read_url: !Ref OnlineTrialRequestSQS
@@ -792,8 +783,8 @@
         - OnlineTrialLifecycleIamRole
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: TrialLifecycleHandler.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "TrialLifecycleHandler-${Stage}.zip"
         Environment:
           Variables:
             stack_type: Trial
@@ -936,8 +927,8 @@
         - OnlineTrialStackBuilderIamRole
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: TrialStackBuilder.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "TrialStackBuilder-${Stage}.zip"
         Environment:
           Variables:
             username: !Ref AdminUsername
@@ -1075,8 +1066,8 @@
         - OnlineTrialTemplatesBucketHandlerIamRole
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: EmptyBucketLambda.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "EmptyBucketLambda-${Stage}.zip"
         Handler: org.alfresco.devops.EmptyBucktetsLambdaFunctionHandler
         MemorySize: 512
         Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
@@ -1145,13 +1136,13 @@
         - OnlineTrialAPICustomDomainNameIamRole
       Properties:
         Code:
-          S3Bucket: !Ref LambdaBucket
-          S3Key: ApiDomainName.zip
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "ApiGatewayDomainName-${Stage}.zip"
         Environment:
           Variables:
             certificate_arn: !Ref APICertArn
             domain_name: !If [CreatedByBamboo, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
-        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "ApiDomainName-${Stage}"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "ApiGatewayDomainName-${Stage}"]
         Handler: api_domain_name.handler
         Role: !GetAtt OnlineTrialAPICustomDomainNameIamRole.Arn
         Runtime: python2.7
@@ -1240,7 +1231,7 @@
                   Action:
                     - s3:GetObject
                   Resource:
-                    - !Sub "arn:aws:s3:::${LambdaBucket}/*"
+                    - !Sub "arn:aws:s3:::online-trial-devops-lambda-${Stage}/*"
           - PolicyName: OnlineTrialLambdaUpdaterLoggingPolicy
             PolicyDocument:
               Version: 2012-10-17
@@ -1271,7 +1262,7 @@
                 if 'Records' in event:
                   for record in event['Records']:
                     filename = record['s3']['object']['key']
-                    function_name = "{}-{}".format(filename.split(".")[0], os.environ['stage'])
+                    function_name = filename.split(".")[0]
                     response = {}
                     try:
                       response = client.get_function(FunctionName=function_name)
@@ -1289,8 +1280,7 @@
                 print("{}\n".format(err))
         Environment:
           Variables:
-            bucket_name: !Ref LambdaBucket
-            stage: !Ref Stage
+            bucket_name: !Sub "online-trial-devops-lambda-${Stage}"
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "LambdaUpdater-${Stage}"]
         Handler: index.handler
         Role: !GetAtt OnlineTrialLambdaUpdaterIamProfile.Arn
