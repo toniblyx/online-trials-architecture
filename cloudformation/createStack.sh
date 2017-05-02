@@ -4,11 +4,11 @@
 # that the template can be created from scratch.
 
 usage() {
-  echo "Usage: createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname> <password>"
+  echo "Usage: createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname> <password> <marketo_secret>"
   exit 1
 }
 
-if [ $# -lt 6 ]; then
+if [ $# -lt 7 ]; then
   usage
 else
   BAMBOO_WORKING_DIR=$4
@@ -39,7 +39,8 @@ else
   sed -i'.bak' "
       s/@@STACK_NAME@@/$STACK_NAME/g;
       s/@@USERNAME@@/$5/g;
-      s/@@PASSWORD@@/$6/g
+      s/@@PASSWORD@@/$6/g;
+      s/@@MARKET_SECRET@@/$7/g
   " parameters.json
 
   # Validate the template

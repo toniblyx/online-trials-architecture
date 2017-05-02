@@ -18,5 +18,9 @@
   {
     "ParameterKey":"UpdatedTime",
     "ParameterValue":"@@UPDATED_TIME@@"
+  },
+  {
+    "ParameterKey":"MarketoSecret",
+    "UsePreviousValue": true
   }
 ]
