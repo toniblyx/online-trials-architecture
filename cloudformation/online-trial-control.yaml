@@ -483,7 +483,7 @@
             sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
             stage: !Ref Stage
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "InstanceRequestHandler-${Stage}"]
-        Handler: InstanceRequestLambdaHandler.lambda_handler
+        Handler: InstanceRequestHandlerLambda.lambda_handler
         Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
         Runtime: python2.7
         Timeout: 30
