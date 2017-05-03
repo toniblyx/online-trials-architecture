@@ -370,7 +370,7 @@
                     - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
                 - Effect: Allow
                   Action:
-                    - dynamodb:BatchGetItem
+                    - dynamodb:Scan
                   Resource:
                     - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
     OnlineTrialFulfillmentHandler:
