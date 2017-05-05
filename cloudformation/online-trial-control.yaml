@@ -788,6 +788,7 @@
         Environment:
           Variables:
             stack_type: Trial
+            stage: !Ref Stage
             days_to_stop: !Ref DaysToStop
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialLifecycleHandler-${Stage}"]
         Handler: triallifecycle.handler
