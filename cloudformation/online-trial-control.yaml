@@ -950,8 +950,8 @@
         - OnlineTrialScheduledStackBuilder
       Properties:
         # Name not provided to allow updates
-        Description: Every 5 minutes, check we have enough stacks ready to be assigned
-        ScheduleExpression: cron(0/5 * * * ? *) # Runs every 5 minutes
+        Description: Every 1 minute, check we have enough stacks ready to be assigned
+        ScheduleExpression: cron(0/1 * * * ? *) # Runs every minute
         State: ENABLED
         Targets:
           - Arn: !GetAtt OnlineTrialScheduledStackBuilder.Arn
