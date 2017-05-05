@@ -766,6 +766,7 @@
                 - Effect: Allow
                   Action:
                     - iam:DeleteRolePolicy
+                    - iam:DeleteRole
                   Resource:
                     - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
           - PolicyName: OnlineTrialLifeCycleTerminateInstancePolicy
@@ -788,6 +789,7 @@
         Environment:
           Variables:
             stack_type: Trial
+            stage: !Ref Stage
             days_to_stop: !Ref DaysToStop
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialLifecycleHandler-${Stage}"]
         Handler: triallifecycle.handler
