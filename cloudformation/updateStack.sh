@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 STACK_UPDATE_TIMEOUT=400
 CAPABILITIES=CAPABILITY_IAM
 
@@ -13,7 +13,14 @@ source $BAMBOO_WORKING_DIR/common.func
 # Essential Variables
 export AWS_ACCESS_KEY_ID=$1
 export AWS_SECRET_ACCESS_KEY=$2
-STACK_NAME="online-trial-control-test"
+
+IFS='-' read -a myarray <<< "$3"
+BRANCH='test'
+if [ "${myarray[1]}" == "master" ]; then
+  BRANCH='prod'
+fi
+STACK_NAME="online-trial-control-$BRANCH"
+logInfo "Updating $STACK_NAME"
 
 # Replace placeholders
 CURRENT_TIME=$(date +%s)
