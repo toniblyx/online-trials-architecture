@@ -766,6 +766,7 @@
                 - Effect: Allow
                   Action:
                     - iam:DeleteRolePolicy
+                    - iam:DeleteRole
                   Resource:
                     - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
           - PolicyName: OnlineTrialLifeCycleTerminateInstancePolicy
