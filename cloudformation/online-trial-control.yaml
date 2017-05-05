@@ -290,6 +290,7 @@
                 - Effect: Allow
                   Action:
                     - ec2:DescribeTags
+                    - ec2:DescribeInstanceStatus
                   Resource:
                     - "*"
                 - Effect: Allow
