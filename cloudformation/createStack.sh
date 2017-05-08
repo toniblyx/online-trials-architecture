@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 # This script will create a copy of the online trial architecture, testing
 # that the template can be created from scratch.
 

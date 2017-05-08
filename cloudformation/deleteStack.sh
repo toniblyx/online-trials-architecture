@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 STACK_DELETION_TIMEOUT=300
 
 usage() {
