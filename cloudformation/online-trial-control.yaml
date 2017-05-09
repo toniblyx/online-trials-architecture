@@ -462,7 +462,7 @@
           Variables:
             api_host: https://453-liz-762.mktorest.com
             client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
-            client_secret: iPPgKiB224jsa02duwPcKy9ox7078P7S
+            client_secret: !Ref MarketoSecret
             sqs_url: !Ref OnlineTrialRequestSQS
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialRequestHandler-${Stage}"]
