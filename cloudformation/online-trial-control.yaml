@@ -466,7 +466,7 @@
             sqs_url: !Ref OnlineTrialRequestSQS
             trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
         FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialRequestHandler-${Stage}"]
-        Handler: TRH.lambda_handler
+        Handler: TrialRequestHandlerLambda.lambda_handler
         Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
         Runtime: python2.7
         Timeout: 90
