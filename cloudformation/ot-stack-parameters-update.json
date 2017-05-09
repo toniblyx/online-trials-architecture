@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey":"AdminUsername",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"AdminPassword",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"TrialAMIId",
+    "ParameterValue":"ami-b57500a3"
+  }
+]
