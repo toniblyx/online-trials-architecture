@@ -3,7 +3,7 @@
 # that the template can be created from scratch.
 
 usage() {
-  echo "Usage: createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname>"
+  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname>"
   exit 1
 }
 
