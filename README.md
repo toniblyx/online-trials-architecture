@@ -14,3 +14,20 @@
 - Find the correct R53 entry in the correct AWS account (either test or prod) and update the alias to the new cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard. This will be automated in V2.0.x
 - If necessary, find the correct Trial AMI and share it to another region/account. Update the parameter in the online-trial-stack.yaml template.
 - As the VPC and security groups used by Trials arent created by the control, they will need recreating manually in another region/account (chosen for DR).
+
+For a comprehensive documentation on the Online Trials Architecture , please visit our [Wiki](https://github.com/Alfresco/online-trials-architecture/wiki)
+
+## License and Author
+Copyright 2017, Alfresco
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
