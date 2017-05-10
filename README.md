@@ -15,6 +15,8 @@
 - If necessary, find the correct Trial AMI and share it to another region/account. Update the parameter in the online-trial-stack.yaml template.
 - As the VPC and security groups used by Trials arent created by the control, they will need recreating manually in another region/account (chosen for DR).
 
+For a comprehensive documentation on the Online Trials Architecture , please visit our [Wiki](https://github.com/Alfresco/online-trials-architecture/wiki)
+
 ## License and Author
 Copyright 2017, Alfresco
 
