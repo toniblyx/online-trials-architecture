@@ -2,6 +2,8 @@
 # This script will create a copy of the online trial architecture, testing
 # that the template can be created from scratch.
 
+source common.func
+
 usage() {
   echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname>"
   exit 1
