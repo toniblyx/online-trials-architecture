@@ -3,17 +3,26 @@
 ## Current Manual steps required:
 
 - Manually deleting the stack (via the console or cli) will leave the usage plan behind, this will need deleting.
-- If the stack has just been built for testing, update the R53 entry currently in the correct AWS account (request{stage}.trial.alfresco.com) to point to the cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard.
+- If the test stack has just been rebuilt, update the R53 entry currently in the correct AWS account (request{stage}.trial.alfresco.com) to point to the cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard.
 - The SSH key required for the OpsWorksGitSSHKey is in our password management system. Get the file from the "Private key (csv)" entry and either paste it into the correct parameter when building a new stack or updating the SSH key setting under the correct OpsWorks stack.
 
 ## DR Steps in case of catastrophe:
 
 - Lambdas that are used for these templates can currently be found here: https://github.com/Alfresco/devops-lambdas
-- Check which Lambda packages we need by referring to the control template and stack template. Upload these to a bucket thats in the same region as the DR system and when deploying the DR stack. We keep two buckets one for test and one for prod. Make sure the prod bucket only contains zip files from the master branch.
-- ### The Lambdas MUST be deployed first as the control system template will not deploy without knowing where the packages lambdas are.
-- Find the correct R53 entry in the correct AWS account (either test or prod) and update the alias to the new cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard. This will be automated in V2.0.x
+- Check which Lambda packages we need by referring to the control template and stack template (search for *.zip to see which zip files we need). Upload these to a bucket thats in the same region as the DR system and when deploying the DR stack. We keep two buckets; one for test and one for prod. Make sure the prod bucket only contains zip files from the master branch.
+- ### The Lambdas MUST be deployed first as the control system template will not deploy without knowing where the packages lambdas are. This will be automated away in V2.0.x
+- Find the correct R53 entry in the correct AWS account (either requesttest.trial.alfresco.com or requestprod.trial.alfresco.com) and update the alias to the new cloudfront distribution address. This entry is found in the Outputs list in the CloudFormation dashboard. This will be automated in V2.0.x
 - If necessary, find the correct Trial AMI and share it to another region/account. Update the parameter in the online-trial-stack.yaml template.
-- As the VPC and security groups used by Trials arent created by the control, they will need recreating manually in another region/account (chosen for DR).
+- As the VPC and security groups used by Trials arent created by the control, they will need recreating manually in another region/account (chosen for DR). This will be automated away in V2.0.x
+
+## How to contribute:
+
+We use git flow on all our new projects. So to contribute you must
+1. Fork this project
+2. Branch from Develop
+3. Make your changes
+4. Test your changes
+5. Make a PR to Develop
 
 For a comprehensive documentation on the Online Trials Architecture , please visit our [Wiki](https://github.com/Alfresco/online-trials-architecture/wiki)
 
