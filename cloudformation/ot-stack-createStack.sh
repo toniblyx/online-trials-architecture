@@ -5,18 +5,17 @@
 source common.func
 
 usage() {
-  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname>"
+  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname> <ami_id>"
   exit 1
 }
 
 if [ $# -lt 7 ]; then
   usage
 else
-  BAMBOO_WORKING_DIR=$4
-  source $BAMBOO_WORKING_DIR/common.func
   TEMPLATE_NAME="online-trial-stack.yaml"
   S3_TEMPLATE_NAME="$3.yaml"
   STACK_NAME=$(echo -n $3 | tr / - | awk '{print tolower($0)}')
+  AMI_ID=$4
 
   CAPABILITIES=CAPABILITY_IAM
   STACK_CREATION_TIMEOUT=600
@@ -28,6 +27,9 @@ else
   # Some logging
   printVarSummary
 
+  USER_NAME='admin'
+  USER_PWD='alfrescodevops'
+
   # Copy the template to S3
   separator
   logInfo "Copy Cloudformation Template $TEMPLATE_NAME to S3 Bucket s3://$S3_BUCKET/"
@@ -38,9 +40,9 @@ else
   separator
   logInfo "Replacing placeholders in parameters.json"
   sed -i'.bak' "
-      s/@@USERNAME@@/$5/g;
-      s/@@PASSWORD@@/$6/g;
-      s/@@AMI_ID@@/$7/g
+      s/@@USERNAME@@/$USER_NAME/g;
+      s/@@PASSWORD@@/$USER_PWD/g;
+      s/@@AMI_ID@@/$4/g
   " ot-stack-parameters.json
 
   # Validate the template
