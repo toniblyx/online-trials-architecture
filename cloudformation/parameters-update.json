@@ -26,5 +26,9 @@
   {
     "ParameterKey":"Stage",
     "UsePreviousValue":true
+  },
+  {
+    "ParameterKey":"OpsWorksGitRepoBranch",
+    "UsePreviousValue":true
   }
 ]
