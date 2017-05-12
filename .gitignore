@@ -1,1 +1,10 @@
 .vscode/
+.idea/
+.project
+*.bak
+*.old
+*.orig
+*.swp
+*~
+.DS_Store
+
