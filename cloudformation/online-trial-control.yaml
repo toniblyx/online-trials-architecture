@@ -1,0 +1,1329 @@
+---
+  AWSTemplateFormatVersion: 2010-09-09
+  Description: "Control Architecture for allocating and managing Online Trials"
+  Metadata:
+    AWS::CloudFormation::Interface:
+      ParameterGroups:
+        - Label:
+            default: Api Gateway Configuration
+          Parameters:
+            - APICertArn
+            - APIDomainName
+            - CreatedBy
+            - Stage
+            - URI
+        - Label:
+            default: OpsWorks Configuration
+          Parameters:
+            - OpsWorksGitRepo
+            - OpsWorksGitRepoBranch
+            - OpsWorksGitSSHKey
+            - OpsWorksLayerSecurityGroups
+        - Label:
+            default: Lifecycle Handler Configuration
+          Parameters:
+            - DaysToStop
+        - Label:
+            default: Stack Builder Configuration
+          Parameters:
+            - MinimumStackCount
+            - OnlineTrialsSubnetId
+            - OnlineTrialsVPCId
+        - Label:
+            default: Sensitive Parameters
+          Parameters:
+            - AdminUsername
+            - AdminPassword
+            - MarketoSecret
+  Parameters:
+    AdminUsername:
+      Type: String
+      Description: The username of the admin user needed to make API calls to each trial stack.
+      NoEcho: true
+    AdminPassword:
+      Type: String
+      Description: The password of the admin user needed to make API calls to each trial stack.
+      NoEcho: true
+    APICertArn:
+      Type: String
+      Description: The ARN of the certificate to use when creating a custom domain name for the API gateway
+      MinLength: 83
+      Default: arn:aws:acm:us-east-1:179276412545:certificate/4f68e66a-9e6a-45e2-9945-ac880e6a21df
+    APIDomainName:
+      Type: String
+      Description: The API Domain name to use IF this template is being created by Bamboo
+    CreatedBy:
+      Type: String
+      Description: A parameter used in a condition to decide which domain names to create for API gateway
+      Default: Other
+      AllowedValues:
+        - Other
+        - Bamboo
+    DaysToStop:
+      Type: Number
+      Description: The number of days that a Trial environment will stop for before being terminated. Useful for recovery
+      Default: 3
+      AllowedValues:
+        - 3
+        - 5
+        - 7
+        - 10
+    MarketoSecret:
+      Type: String
+      Description: The client secret key needed for Marketo to make API calls
+      NoEcho: true
+    MinimumStackCount:
+      Type: Number
+      Description: The minimum number of stacks we want to have running in our "pool".
+      Default: 5
+    OpsWorksGitRepo:
+      Type: String
+      Description: The repo that contains the Chef recipes we use for patching the trial stacks
+      MinLength: 10
+      Default: git@github.com:Alfresco/opsworks-onlinetrials.git
+    OpsWorksGitRepoBranch:
+      Type: String
+      Description: The Branch/Revision of the OpsWorksGitRepo
+      Default: develop
+    OpsWorksGitSSHKey:
+      Type: CommaDelimitedList
+      Description: The Deploy PRIVATE key already created for the repo. Change SSH key newlines to commas
+      NoEcho: true
+      Default: " "
+    OpsWorksLayerSecurityGroups:
+      Type: String
+      Description: A security group to add to the OpsWorks layer in addition to the default.
+      Default: sg-01f5d264
+    Stage:
+      Type: String
+      Description: The stage we are deploying to; either test or prod.
+      Default: test
+      AllowedValues:
+        - test
+        - prod
+    UpdatedTime:
+      Type: String
+      Description: The time in ms that this stack was updated
+      Default: " "
+    URI:
+      Type: String
+      Description: The URI that all requests for trials will be made to.
+      Default: online-trial
+      MinLength: 4
+    OnlineTrialsVPCId:
+      Type: String
+      Description: The VPC Id that the OpsWork Stack will be deployed to. Must be the same as the trials
+      MinLength: 12
+      Default: vpc-80b606e5
+    OnlineTrialsSubnetId:
+      Type: String
+      Description: A list of subnets. Must be associated with the Vpc Id.
+      MinLength: 15
+      Default: subnet-ac7f8ff5
+      AllowedValues:
+        - subnet-ac7f8ff5
+        - subnet-6745564f
+        - subnet-549c4d23
+        - subnet-e94076d3
+  Conditions:
+    CreatedByBamboo: !Equals [!Ref CreatedBy, Bamboo]
+  Resources:
+    OnlineTrialRequestAPI:
+      Type: AWS::ApiGateway::RestApi
+      Properties:
+        Description: API that consumes requests for Online Trial stacks
+        Name: OnlineTrialAPI
+    OnlineTrialRequestResource:
+      Type: AWS::ApiGateway::Resource
+      DependsOn:
+       - OnlineTrialRequestAPI
+      Properties:
+        ParentId: !GetAtt OnlineTrialRequestAPI.RootResourceId
+        PathPart: !Ref URI
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestSQS:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 86400 # 24 hours
+        # QueueName omitted so this resource can be updated
+    OnlineTrialInstanceRequestSQS:
+      Type: AWS::SQS::Queue
+      Properties:
+        MessageRetentionPeriod: 86400
+    OnlineTrialAssignUserHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialInstanceRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
+                  Resource:
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialAssignStackDynamoDbTable}"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeTags
+                  Resource:
+                    - "*"
+    OnlineTrialAssignUserHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+        - OnlineTrialAssignStackDynamoDbTable
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "AssignUserHandler-${Stage}.zip"
+        Environment:
+          Variables:
+            api_host: https://453-liz-762.mktorest.com
+            assign_stack_table: !Ref OnlineTrialAssignStackDynamoDbTable
+            client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
+            client_secret: !Ref MarketoSecret
+            sqs_read_url: !Ref OnlineTrialInstanceRequestSQS
+            username: !Ref AdminUsername
+            password: !Ref AdminPassword
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "AssignUserHandler-${Stage}"]
+        Handler: assign_user_handler.handler
+        MemorySize: 256 
+        Role: !GetAtt OnlineTrialAssignUserHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    OnlineTrialAssignUserScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialAssignUserHandler
+      Properties:
+        Description: Polls a queue to assign users to a stack
+        ScheduleExpression: cron(0/1 * * * ? *)
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialAssignUserHandler.Arn
+            Id: !Ref OnlineTrialAssignUserHandler
+    OnlineTrialAssignUserInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialAssignUserScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialAssignUserHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialAssignUserScheduleRule.Arn
+    OnlineTrialInstanceRequestHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialInstanceRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
+                  Resource:
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource:
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialInstanceRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeTags
+                    - ec2:DescribeInstanceStatus
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+    OnlineTrialRequestDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      DependsOn:
+        - OnlineTrialRequestSQS
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: LeadId
+            AttributeType: "N"
+          - AttributeName: Date
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: LeadId
+            KeyType: HASH
+          - AttributeName: Date
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+        # TableName not provided to allow updating/adding to indexes
+    OnlineTrialAssignStackDynamoDbTable:
+      Type: AWS::DynamoDB::Table
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: LeadId
+            AttributeType: "N"
+          - AttributeName: Date
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: LeadId
+            KeyType: HASH
+          - AttributeName: Date
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 5
+          WriteCapacityUnits: 5
+    OnlineTrialFulfillmentIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+        - OnlineTrialRequestSNSTopic
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialFulfillmentLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource:
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:Scan
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
+    OnlineTrialFulfillmentHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "FulfillmentHandler-${Stage}.zip"
+        Environment:
+          Variables:
+            topic_arn: !Ref OnlineTrialRequestSNSTopic
+            trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "FulfillmentHandler-${Stage}"]
+        Handler: FulfillmentHandlerLambda.lambda_handler
+        Role: !GetAtt OnlineTrialFulfillmentIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    OnlineTrialFulfillmentScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialFulfillmentHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Polls a DB table for unfulfilled requests and publishes them to SNS
+        ScheduleExpression: cron(0/2 * * * ? *) # Runs every 2 minutes
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialFulfillmentHandler.Arn
+            Id: !Ref OnlineTrialFulfillmentHandler
+    OnlineTrialFulfillmentInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialFulfillmentScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialFulfillmentHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialFulfillmentScheduleRule.Arn
+    OnlineTrialRequestHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestDynamoDbTable
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: "/"
+        Policies:
+          - PolicyName: OnlineTrialRequestLambdaExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+                - Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource:
+                    - !Sub "arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSQS.QueueName}"
+                - Effect: Allow
+                  Action:
+                    - dynamodb:UpdateItem
+                  Resource:
+                    - !Sub "arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${OnlineTrialRequestDynamoDbTable}"
+    OnlineTrialRequestHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialRequestHandlerIamRole
+      Properties:
+        Code:
+            S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+            S3Key: !Sub "TrialRequestHandler-${Stage}.zip"
+        Environment:
+          Variables:
+            api_host: https://453-liz-762.mktorest.com
+            client_id: 35a7e1a3-5e60-40b2-bd54-674680af2adc
+            client_secret: !Ref MarketoSecret
+            sqs_url: !Ref OnlineTrialRequestSQS
+            trial_request_table: !Ref OnlineTrialRequestDynamoDbTable
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialRequestHandler-${Stage}"]
+        Handler: TrialRequestHandlerLambda.lambda_handler
+        Role: !GetAtt OnlineTrialRequestHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 90
+    OnlineTrialInstanceRequestHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialInstanceRequestSQS
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "InstanceRequestHandler-${Stage}.zip"
+        Environment:
+          Variables:
+            sqs_read_url: !Ref OnlineTrialRequestSQS
+            sqs_publish_url: !Ref OnlineTrialInstanceRequestSQS
+            stage: !Ref Stage
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "InstanceRequestHandler-${Stage}"]
+        Handler: InstanceRequestHandlerLambda.lambda_handler
+        Role: !GetAtt OnlineTrialInstanceRequestHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    OnlineTrialInstanceRequestScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialInstanceRequestHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Polls a queue for requests
+        ScheduleExpression: cron(0/1 * * * ? *) # Runs every minute
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialInstanceRequestHandler.Arn
+            Id: !Ref OnlineTrialInstanceRequestHandler
+    OnlineTrialInstanceRequestInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialInstanceRequestScheduleRule
+      Properties:
+        FunctionName: !Ref OnlineTrialInstanceRequestHandler
+        Action: lambda:InvokeFunction
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialInstanceRequestScheduleRule.Arn
+    OnlineTrialRequestSNSTopic:
+      Type: AWS::SNS::Topic
+      DependsOn:
+        - OnlineTrialRequestHandler
+      Properties:
+        DisplayName: Online Trials SNS Topic for requests
+        # TopicName left blank. Makes this resource upgradeable
+        Subscription:
+          - Endpoint: !GetAtt OnlineTrialRequestHandler.Arn
+            Protocol: lambda
+    OnlineTrialRequestHandlerInvokePermission:
+        Type: AWS::Lambda::Permission
+        DependsOn:
+          - OnlineTrialRequestSNSTopic
+        Properties:
+          Action: lambda:InvokeFunction
+          FunctionName: !Ref OnlineTrialRequestHandler
+          Principal: sns.amazonaws.com
+          SourceArn: !Ref OnlineTrialRequestSNSTopic
+    OnlineTrialRequestProxyExecRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestSNSTopic
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: APIGatewayAWSProxyExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource:
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
+    OnlineTrialRequestGetMethod:
+      Type: AWS::ApiGateway::Method
+      Properties:
+        AuthorizationType: NONE
+        HttpMethod: GET
+        MethodResponses:
+          - StatusCode: 200
+        Integration:
+          PassthroughBehavior: WHEN_NO_TEMPLATES
+          RequestTemplates:
+            application/json: "{\n    \"statusCode\": 200\n}"
+          IntegrationResponses:
+            - StatusCode: 200
+          Type: MOCK
+        ResourceId: !Ref OnlineTrialRequestResource
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestPostMethod:
+      Type: AWS::ApiGateway::Method
+      DependsOn:
+        - OnlineTrialRequestProxyExecRole
+      Properties:
+        ApiKeyRequired: true
+        AuthorizationType: NONE
+        HttpMethod: POST
+        MethodResponses:
+          - StatusCode: 200
+        Integration:
+          Credentials: !GetAtt OnlineTrialRequestProxyExecRole.Arn
+          IntegrationHttpMethod: POST
+          IntegrationResponses:
+            - ResponseTemplates:
+                application/json: "#set($inputRoot = $input.path('$')) { }"
+              StatusCode: 200
+          RequestParameters:
+            integration.request.querystring.Message: 'method.request.body'
+            integration.request.querystring.TopicArn: 'method.request.header.topicarn'
+          Type: AWS
+          Uri: !Sub "arn:aws:apigateway:${AWS::Region}:sns:action/Publish"
+        RequestParameters:
+          method.request.querystring.Message: true
+          method.request.header.topicarn: true
+        ResourceId: !Ref OnlineTrialRequestResource
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestDeployment:
+      Type: AWS::ApiGateway::Deployment
+      DependsOn:
+        - OnlineTrialRequestGetMethod
+        - OnlineTrialRequestPostMethod
+      Properties:
+        RestApiId: !Ref OnlineTrialRequestAPI
+    OnlineTrialRequestStage:
+      Type: AWS::ApiGateway::Stage
+      DependsOn:
+        - OnlineTrialRequestAPI
+        - OnlineTrialRequestDeployment
+      Properties:
+        DeploymentId: !Ref OnlineTrialRequestDeployment
+        MethodSettings:
+          - DataTraceEnabled: true
+            HttpMethod: "*"
+            LoggingLevel: INFO
+            MetricsEnabled: true
+            ResourcePath: "/*"
+        RestApiId: !Ref OnlineTrialRequestAPI
+        StageName: !Ref Stage
+    OnlineTrialRequestApiKey:
+      Type: AWS::ApiGateway::ApiKey
+      DependsOn:
+       - OnlineTrialRequestStage
+      Properties:
+        # By not specifying a name, it allows this resource to be upgradeable
+        Description: Used to secure access to our Online Trial APIs
+        Enabled: true
+        StageKeys:
+          - RestApiId: !Ref OnlineTrialRequestAPI
+            StageName: !Ref Stage
+    OnlineTrialRequestUsagePlan:
+      Type: AWS::ApiGateway::UsagePlan
+      DependsOn:
+        - OnlineTrialRequestStage
+      DeletionPolicy: Retain
+      Properties:
+        ApiStages:
+          - ApiId: !Ref OnlineTrialRequestAPI
+            Stage: !Ref Stage
+        Description: Online Trial Usage Plan
+        Quota:
+          Limit: 500
+          Period: MONTH
+        UsagePlanName: Plan_Online_Trials
+    OnlineTrialRequestUsagePlanKey:
+      Type: AWS::ApiGateway::UsagePlanKey
+      DependsOn:
+        - OnlineTrialRequestApiKey
+        - OnlineTrialRequestUsagePlan
+      Properties:
+        KeyId: !Ref OnlineTrialRequestApiKey
+        KeyType: API_KEY
+        UsagePlanId: !Ref OnlineTrialRequestUsagePlan
+    OnlineTrialRequestCloudWatchLogsRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: ApiGatewayLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: APIGatewayAWSProxyExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sns:Publish
+                  Resource:
+                    - !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${OnlineTrialRequestSNSTopic.TopicName}"
+    OnlineTrialRequestAccount:
+      Type: AWS::ApiGateway::Account
+      DependsOn:
+        - OnlineTrialRequestCloudWatchLogsRole
+      Properties:
+        CloudWatchRoleArn: !GetAtt OnlineTrialRequestCloudWatchLogsRole.Arn
+    OnlineTrialLifecycleIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialLifecycleLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialLifecycleStopEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:StopInstances
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+          - PolicyName: OnlineTrialLifecycleEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeInstances
+                    - ec2:DescribeTags
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:CreateTags
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+          - PolicyName: OnlineTrialLifecycleCloudformationPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:ListStacks
+                    - cloudformation:DeleteStack
+                  Resource:
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialLifecycleDeleteStackPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:DeleteFunction
+                    - lambda:InvokeFunction
+                  Resource:
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+                - Effect: Allow
+                  Action:
+                    - iam:DeleteRolePolicy
+                    - iam:DeleteRole
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+          - PolicyName: OnlineTrialLifeCycleTerminateInstancePolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:TerminateInstances
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*"
+    OnlineTrialLifecycleHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialLifecycleIamRole
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "TrialLifecycleHandler-${Stage}.zip"
+        Environment:
+          Variables:
+            stack_type: Trial
+            stage: !Ref Stage
+            days_to_stop: !Ref DaysToStop
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialLifecycleHandler-${Stage}"]
+        Handler: triallifecycle.handler
+        MemorySize: 512
+        Role: !GetAtt OnlineTrialLifecycleIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    OnlineTrialLifecycleScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialLifecycleHandler
+      Properties:
+        # Name not provided to allow updates
+        Description: Once per day, checks the cloudformation stacks for expiration
+        ScheduleExpression: cron(0 1 * * ? *) # Runs every day at 1am UTC
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialLifecycleHandler.Arn
+            Id: !Ref OnlineTrialLifecycleHandler
+    OnlineTrialLifecycleInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialLifecycleScheduleRule
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !Ref OnlineTrialLifecycleHandler
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialLifecycleScheduleRule.Arn
+    OnlineTrialStackTemplateBucket:
+      Type: AWS::S3::Bucket
+      DeletionPolicy: Retain  # deleted by the custom lambda
+      Properties:
+        AccessControl: BucketOwnerFullControl
+        Tags:
+          - Key: Name
+            Value: Online Trials Template Bucket
+        VersioningConfiguration:
+          Status: Enabled
+    OnlineTrialStackBuilderIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialStackTemplateBucket
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+                  - s3.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialStackBuilderLogsPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialStackBuilderExecPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cloudformation:ListStacks
+                    - cloudformation:DescribeStacks
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - cloudformation:CreateStack
+                  Resource:
+                    - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialStackBuilderEc2Policy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeTags
+                    - ec2:DescribeKeyPairs
+                    - ec2:DescribeImages
+                    - ec2:DescribeInstances
+                    - ec2:ModifyInstanceAttribute
+                  Resource:
+                    - "*"
+                - Effect: Allow
+                  Action:
+                    - ec2:TerminateInstances
+                    - ec2:RunInstances
+                    - ec2:CreateTags
+                  Resource:
+                    - !Sub "arn:aws:ec2:${AWS::Region}:*:*"
+          - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
+          - PolicyName: OnlineTrialStackBuilderIamPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - iam:CreateRole
+                    - iam:PutRolePolicy
+                    - iam:GetRole
+                    - iam:DeleteRolePolicy
+                    - iam:PassRole
+                    - iam:DeleteRole
+                  Resource:
+                    - !Sub "arn:aws:iam::${AWS::AccountId}:role/*"
+                - Effect: Allow
+                  Action:
+                    - lambda:CreateFunction
+                    - lambda:GetFunctionConfiguration
+                    - lambda:DeleteFunction
+                    - lambda:InvokeFunction
+                  Resource:
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+    OnlineTrialScheduledStackBuilder:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialStackBuilderIamRole
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "TrialStackBuilder-${Stage}.zip"
+        Environment:
+          Variables:
+            username: !Ref AdminUsername
+            password: !Ref AdminPassword
+            stack_count: !Ref MinimumStackCount
+            stage: !Ref Stage
+            template_bucket_name: !Ref OnlineTrialStackTemplateBucket
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "TrialStackBuilder-${Stage}"]
+        Handler: TrialStackBuilderLambda.lambda_handler
+        Role: !GetAtt OnlineTrialStackBuilderIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    OnlineTrialStackBuilderScheduleRule:
+      Type: AWS::Events::Rule
+      DependsOn:
+        - OnlineTrialScheduledStackBuilder
+      Properties:
+        # Name not provided to allow updates
+        Description: Every 1 minute, check we have enough stacks ready to be assigned
+        ScheduleExpression: cron(0/1 * * * ? *) # Runs every minute
+        State: ENABLED
+        Targets:
+          - Arn: !GetAtt OnlineTrialScheduledStackBuilder.Arn
+            Id: !Ref OnlineTrialScheduledStackBuilder
+    OnlineTrialStackBuilderInvokePermission:
+      Type: AWS::Lambda::Permission
+      DependsOn:
+        - OnlineTrialStackBuilderScheduleRule
+      Properties:
+        Action: lambda:InvokeFunction
+        FunctionName: !Ref OnlineTrialScheduledStackBuilder
+        Principal: events.amazonaws.com
+        SourceArn: !GetAtt OnlineTrialStackBuilderScheduleRule.Arn
+    OnlineTrialTemplatesBucketHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+       - OnlineTrialStackTemplateBucket
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - s3.amazonaws.com
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialTemplatesBucketHandlerLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialStackBuilderBucketReaderPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:DeleteBucket
+                    - s3:ListBucketVersions
+                    - s3:DeleteObject
+                    - s3:DeleteObjectVersion
+                    - s3:PutObject
+                  Resource:
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}"
+                    - !Sub "arn:aws:s3:::${OnlineTrialStackTemplateBucket}/*"
+    OnlineTrialTemplateBucketFillerHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialTemplatesBucketHandlerIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import uuid
+            import os
+            import cfnresponse
+            import urllib
+            import boto3
+
+            def handler(event, context):
+              # if the event is create or update, add a new version of the template to the bucket
+              # if the event is delete, do nothing as the EmptyBucketLambda will handle it
+              try:
+                branch = 'develop' if os.environ['stage'] == 'test' else 'master'
+                url = os.environ['url'].format(branch)
+                filename = "online-trial-stack-{}.yaml".format(branch)
+                eventType = event['RequestType']
+                physicalResourceId = str(uuid.uuid1()) if eventType == 'Create' else event['PhysicalResourceId']
+                if eventType == 'Create' or eventType == 'Update':
+                  client = boto3.client('s3')
+                  print("Event type {} ".format(eventType))
+                  response = urllib.urlopen(url)
+                  payload = response.read()
+                  with open("/tmp/{}".format(filename), "wb") as f:
+                    f.write(payload)
+                  # Upload the file to s3
+                  with open("/tmp/{}".format(filename), "rb") as r:
+                    client.upload_fileobj(r, os.environ['bucket_name'], filename)
+                  
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId)
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            bucket_name: !Ref OnlineTrialStackTemplateBucket
+            stage: !Ref Stage
+            url: "https://raw.githubusercontent.com/Alfresco/online-trials-architecture/{}/cloudformation/online-trial-stack.yaml"
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    OnlineTrialTemplatesBucketFillerCustomResource:
+      Type: Custom::BucketFiller
+      DependsOn:
+        - OnlineTrialTemplateBucketFillerHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialTemplateBucketFillerHandler.Arn
+        UpdatedTime: !Ref UpdatedTime
+    OnlineTrialTemplatesBucketLifeCycleHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialTemplatesBucketHandlerIamRole
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "EmptyBucketLambda-${Stage}.zip"
+        Handler: org.alfresco.devops.EmptyBucktetsLambdaFunctionHandler
+        MemorySize: 512
+        Role: !GetAtt OnlineTrialTemplatesBucketHandlerIamRole.Arn
+        Runtime: java8
+        Timeout: 15
+    OnlineTrialTemplatesBucketLifecycleCustomResource:
+      Type: Custom::EmptyBucket
+      DependsOn:
+        - OnlineTrialTemplatesBucketLifeCycleHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialTemplatesBucketLifeCycleHandler.Arn
+        BucketName: !Ref OnlineTrialStackTemplateBucket
+    OnlineTrialAPICustomDomainNameIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - OnlineTrialRequestDeployment
+        - OnlineTrialRequestStage
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+                  - apigateway.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialDomainHandlerLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: OnlineTrialAPIDomainHandlerPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - apigateway:POST
+                    - apigateway:GET
+                    - apigateway:DELETE
+                  Resource: 
+                    - !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames"
+                    - !If [CreatedByBamboo, !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames/${APIDomainName}",
+                     !Sub "arn:aws:apigateway:${AWS::Region}::/domainnames/request${Stage}.trial.alfresco.com"]
+          - PolicyName: OnlineTrialCloudfrontPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - cloudfront:UpdateDistribution
+                  Resource: "*"
+    OnlineTrialAPICustomDomainNameHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialAPICustomDomainNameIamRole
+      Properties:
+        Code:
+          S3Bucket: !Sub "online-trial-devops-lambda-${Stage}"
+          S3Key: !Sub "ApiGatewayDomainName-${Stage}.zip"
+        Environment:
+          Variables:
+            certificate_arn: !Ref APICertArn
+            domain_name: !If [CreatedByBamboo, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "ApiGatewayDomainName-${Stage}"]
+        Handler: api_domain_name.handler
+        Role: !GetAtt OnlineTrialAPICustomDomainNameIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    OnlineTrialAPICustomDomainCustomResource:
+      Type: Custom::APIDomainName
+      DependsOn:
+        - OnlineTrialAPICustomDomainNameHandler
+      Properties:
+        ServiceToken: !GetAtt OnlineTrialAPICustomDomainNameHandler.Arn
+    OnlineTrialAPIBasepathMapping:
+      Type: AWS::ApiGateway::BasePathMapping
+      DependsOn:
+        - OnlineTrialRequestAPI
+        - OnlineTrialRequestStage
+        - OnlineTrialAPICustomDomainCustomResource
+      Properties:
+        BasePath: " " # Workaround for CF bug. Unless specified, even if empty/none is required, delete will fail.
+        DomainName: !If [CreatedByBamboo, !Ref APIDomainName, !Sub "request${Stage}.trial.alfresco.com"]
+        RestApiId: !Ref OnlineTrialRequestAPI
+        Stage: !Ref Stage
+    OnlineTrialOpsWorksStack:
+      Type: AWS::OpsWorks::Stack
+      Properties:
+        ConfigurationManager:
+          Name: Chef
+          Version: 12
+        CustomCookbooksSource:
+          Revision: !Ref OpsWorksGitRepoBranch
+          SshKey: !Join [ "\n" , !Ref OpsWorksGitSSHKey ]
+          Type: git
+          Url: !Ref OpsWorksGitRepo
+        DefaultInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/aws-opsworks-ec2-role" # default recommended by aws
+        DefaultOs: Custom
+        DefaultRootDeviceType: ebs
+        DefaultSubnetId: !Ref OnlineTrialsSubnetId
+        Name: !Sub "OnlineTrialOpsWorksStack-${Stage}"
+        ServiceRoleArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-opsworks-service-role" # current default
+        UseCustomCookbooks: true
+        UseOpsworksSecurityGroups: true
+        VpcId: !Ref OnlineTrialsVPCId
+    OnlineTrialOpsWorksAlfrescoLayer:
+      Type: AWS::OpsWorks::Layer
+      DependsOn:
+        - OnlineTrialOpsWorksStack
+      Properties:
+        AutoAssignElasticIps: false
+        AutoAssignPublicIps: true
+        CustomInstanceProfileArn: !Sub "arn:aws:iam::${AWS::AccountId}:instance-profile/aws-opsworks-ec2-role"
+        CustomSecurityGroupIds:
+          - !Ref OpsWorksLayerSecurityGroups
+        EnableAutoHealing: true
+        Name: !Sub "AlfrescoLayer-${Stage}"
+        Shortname: !Sub "otalf-${Stage}"
+        StackId: !Ref OnlineTrialOpsWorksStack
+        Type: custom
+    OnlineTrialLambdaUpdaterIamProfile:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: OnlineTrialLambdaUpdaterPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - lambda:GetFunction
+                    - lambda:UpdateFunctionCode
+                  Resource: 
+                    - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:*"
+          - PolicyName: OnlineTrialLambdaUpdaterBucketPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                  Resource:
+                    - !Sub "arn:aws:s3:::online-trial-devops-lambda-${Stage}/*"
+          - PolicyName: OnlineTrialLambdaUpdaterLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource: 
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+    OnlineTrialLambdaUpdater:
+      # Triggered by an s3 upload
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - OnlineTrialLambdaUpdaterIamProfile
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import boto3
+            import os
+            
+            def handler(event, context):
+              # update the function code relating to the key name
+              try:
+                client = boto3.client('lambda')
+                if 'Records' in event:
+                  for record in event['Records']:
+                    filename = record['s3']['object']['key']
+                    function_name = filename.split(".")[0]
+                    response = {}
+                    try:
+                      response = client.get_function(FunctionName=function_name)
+                    except:
+                      print("Function {} not found, skipping".format(function_name))
+                      continue
+                    
+                    response = client.update_function_code(
+                      FunctionName=function_name,
+                      S3Bucket=os.environ['bucket_name'],
+                      S3Key=filename
+                    )
+                    print("Function {} updated".format(function_name))
+              except Exception as err:
+                print("{}\n".format(err))
+        Environment:
+          Variables:
+            bucket_name: !Sub "online-trial-devops-lambda-${Stage}"
+        FunctionName: !If [CreatedByBamboo, !Ref "AWS::NoValue", !Sub "LambdaUpdater-${Stage}"]
+        Handler: index.handler
+        Role: !GetAtt OnlineTrialLambdaUpdaterIamProfile.Arn
+        Runtime: python2.7
+        Timeout: 10
+  Outputs:
+    DistributionName:
+      Description: The CloudFront distribution name to point a R53 entry to.
+      Value: !GetAtt OnlineTrialAPICustomDomainCustomResource.DistributionName
+    OnlineTrialsTestEndPoint:
+      Description: The URI to send a GET request to that tests the API is up and running.
+      Value: !Sub "https://${OnlineTrialRequestAPI}.execute-api.${AWS::Region}.amazonaws.com/${Stage}/${URI}"
+    OnlineTrialsRequestDomainName:
+      Description: The pretty domain name to hand over to marketing.
+      Value: !If [CreatedByBamboo, !Sub "https://${APIDomainName}/${URI}", !Sub "https://request${Stage}.trial.alfresco.com/${URI}"]
+    OnlineTrialsVPCId:
+      Description: The VPC for all trial stacks to deploy into
+      Value: !Ref OnlineTrialsVPCId
+      Export:
+        Name: !Sub "${AWS::StackName}-OnlineTrialsVPCId"
+    TopicArn:
+      Description: The ARN of the Topic tied to the API gateway. Needed as a header to make a request (topicarn=)
+      Value: !Ref OnlineTrialRequestSNSTopic
+    OpsWorksStackId:
+      Description: The OpsWorks Stack Id needed for each Trial stack to register to.
+      Value: !Ref OnlineTrialOpsWorksStack
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksStackId"
+    OpsWorksLayerId:
+      Description: The OpsWorks Layer Id needed for each Trial stacks' instance to assign to.
+      Value: !Ref OnlineTrialOpsWorksAlfrescoLayer
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksLayerId"
+    OpsWorksDeploymentStage:
+      Description: The Stage that the stacks are being deployed into
+      Value: !Ref Stage
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksDeploymentStage"
+    OpsWorksLayerSecurityGroups:
+      Description: The Security Group ID used for all Trial Instances
+      Value: !Ref OpsWorksLayerSecurityGroups
+      Export:
+        Name: !Sub "${AWS::StackName}-OpsWorksLayerSecurityGroups"

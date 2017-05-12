@@ -1,0 +1,26 @@
+[
+  {
+    "ParameterKey":"AdminUsername",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"AdminPassword",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"APIDomainName",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"OpsWorksGitSSHKey",
+    "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"UpdatedTime",
+    "ParameterValue":"@@UPDATED_TIME@@"
+  },
+  {
+    "ParameterKey":"MarketoSecret",
+    "UsePreviousValue": true
+  }
+]

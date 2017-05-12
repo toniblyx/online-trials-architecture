@@ -1,0 +1,84 @@
+# Util
+separator() {
+    echo "============================"
+}
+
+logInfo() {
+    echo "info::: $1"
+}
+
+logError() {
+    echo "error::: $1"
+    exit 1
+}
+
+# Variables
+S3_BUCKET=${S3_BUCKET:-onlinetrialstemplatesbamboo}
+
+if [ -z "$AWS_DEFAULT_REGION" ]; then
+  export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+fi
+
+CAPABILITIES=${CAPABILITIES:-CAPABILITY_IAM}
+
+VAR_LIST="S3_BUCKET AWS_DEFAULT_REGION CAPABILITIES"
+
+printVarSummary() {
+    separator
+    echo "Variables Summary"
+    separator
+    for var in $VAR_LIST
+    do
+        echo "$var = ${!var}"
+    done
+    separator
+}
+
+monitorStatus() {
+    case "$1" in
+        *DELETE_IN_PROGRESS*)
+            echo -ne "DELETE_IN_PROGRESS...\\r"
+            ;;
+        *DELETE_COMPLETE*)
+            logInfo "DELETE_COMPLETE. Stack successfully deleted"
+            DELETE_COMPLETE_EVENT="DELETE_COMPLETE"
+            ;;
+        *ROLLBACK_IN_PROGRESS*)
+            echo -ne "ROLLBACK_IN_PROGRESS...\\r"
+            ;;
+        *ROLLBACK_COMPLETE*)
+            logError "ROLLBACK_COMPLETE. Stack creation failed"
+            ;;
+        *CREATE_FAILED*)
+            logError "CREATED_FAILED. Stack creation failed"
+            ;;
+        *CREATE_IN_PROGRESS*)
+            echo -ne "CREATE_IN_PROGRESS... \\n(This can take up to 30 minutes)\\r"
+            ;;
+        *CREATE_COMPLETE*)
+            logInfo "CREATE_COMPLETE. Stack successfully created"
+            CREATION_COMPLETE_EVENT="CREATE_COMPLETE"
+            ;;
+        *UPDATE_IN_PROGRESS*)
+            echo -ne "UPDATE_IN_PROGRESS...\\n(This can take up to 30 minutes)\\r"
+            ;;
+        *UPDATE_COMPLETE*)
+            logInfo "UPDATE_COMPLETE. Stack successfully updated"
+            UPDATE_COMPLETE_EVENT="UPDATE_COMPLETE"
+            ;;
+        *UPDATE_ROLLBACK_COMPLETE*)
+            logError "UPDATE_ROLLBACK_COMPLETE. Stack update failed"
+            ;;
+        *UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS*)
+            logError "UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS. Stack update failed"
+            ;;
+        *UPDATE_ROLLBACK_FAILED*)
+            logError "UPDATE_ROLLBACK_FAILED. Stack update failed"
+            ;;
+        *UPDATE_ROLLBACK_IN_PROGRESS*)
+            logInfo "UPDATE_ROLLBACK_IN_PROGRESS"
+            ;;
+        *)
+            ;;
+    esac
+}

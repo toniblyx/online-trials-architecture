@@ -1,0 +1,694 @@
+---
+  AWSTemplateFormatVersion: 2010-09-09
+  Description: "Online Trial Stack. Everything needed to deploy a single trial stack"
+  Metadata:
+    AWS::CloudFormation::Interface:
+      ParameterGroups:
+        - Label:
+            default: Trial Environment Configuration
+          Parameters:
+            - TrialAMIId
+            - TrialInstanceType
+            - TrialSSHKey
+            - TrialLifetimeInDays
+        - Label:
+            default: Control Architecture Configuration
+          Parameters:
+            - ControlArchitectureName
+        - Label:
+            default: Lambda Configurations
+          Parameters:
+            - SystemsRole
+  Parameters:
+    AdminUsername:
+      Type: String
+      Description: The username of the admin user needed to make internal API calls
+    AdminPassword:
+      Type: String
+      Description: The password of the admin use rneeded to make internal API calls
+      NoEcho: True
+    ControlArchitectureName:
+      Description: The name of the Online Trial Control architecture cloudformation stack
+      Type: String
+      MinLength: 1
+      Default: online-trial-control-test
+    TrialAMIId:
+      Description: The AMI Id of the Trial Image
+      Type: AWS::EC2::Image::Id
+      Default: ami-fd5425eb
+      MinLength: 1
+    TrialInstanceType:
+      Description: The type of EC2 instance to deploy the AMI to
+      Type: String
+      Default: t2.medium
+      MinLength: 1
+      AllowedValues:
+        - t2.medium
+        - t2.large
+        - m4.large
+        - m4.xlarge
+        - m4.2xlarge
+        - m4.4xlarge
+    TrialSSHKey:
+      Description: The name of an existing EC2 KeyPair
+      Type: AWS::EC2::KeyPair::KeyName
+      Default: salty-trials
+    TrialLifetimeInDays:
+      Description: How long in days before the instance is stopped
+      Type: Number
+      Default: 14
+    SystemsRole:
+      Description: The arn of the role to access in the systems account to create R53 entries
+      Type: String
+      Default: arn:aws:iam::823267158217:role/OktaAdminRole
+      AllowedValues:
+        - arn:aws:iam::823267158217:role/OktaAdminRole
+  Resources:
+    TrialRoute53DomainNameGenIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialRoute53DomainNameGenLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+    TrialRoute53DomainNameGenerator:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialRoute53DomainNameGenIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            from datetime import datetime, timedelta
+            import os
+            import cfnresponse
+            import random
+            import string
+
+            def handler(event, context):
+              try:
+                if event['RequestType'] == 'Create':
+                  name = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+                  responseData = {}
+                  responseData['DomainName'] = name
+                  d = datetime.today() + timedelta(days=int(os.environ['days_to_stop']))
+                  responseData['ExpiryDate'] = d.date().strftime('%d-%m-%Y')
+                  print(responseData)
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData)
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            days_to_stop: !Ref TrialLifetimeInDays
+        Handler: index.handler
+        Role: !GetAtt TrialRoute53DomainNameGenIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    TrialRoute53DomainNameGenCustomResource:
+      Type: Custom::DomainName
+      DependsOn:
+        - TrialRoute53DomainNameGenerator
+      Properties:
+        ServiceToken: !GetAtt TrialRoute53DomainNameGenerator.Arn
+    TrialSubnetIdAllocatorIamRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialSubnetIdAllocatorLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: TrialSubnetIdAllocatorPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ec2:DescribeSubnets
+                  Resource:
+                    - "*"
+    TrialSubnetIdAllocator:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialSubnetIdAllocatorIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+            import random
+
+            def handler(event, context):
+              client = boto3.client('ec2')
+              try:
+                if event['RequestType'] == 'Create':
+                  response = client.describe_subnets(
+                    Filters=[{
+                        'Name': 'vpc-id',
+                        'Values': [os.environ['vpc_id']]
+                      }
+                    ]
+                  )
+
+                  subnets = []
+                  for subnet in response['Subnets']:
+                    print("Adding {} to subnet list".format(subnet['SubnetId']))
+                    subnets.append(subnet['SubnetId'])
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {'SubnetId' : random.choice(subnets)})
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            vpc_id:
+              Fn::ImportValue:
+                !Sub "${ControlArchitectureName}-OnlineTrialsVPCId"
+        Handler: index.handler
+        Role: !GetAtt TrialSubnetIdAllocatorIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    TrialSubnetIdAllocatorCustomResource:
+      Type: Custom::GetSubnetId
+      DependsOn:
+        - TrialSubnetIdAllocator
+      Properties:
+        ServiceToken: !GetAtt TrialSubnetIdAllocator.Arn
+    TrialEc2Instance:
+      Type: AWS::EC2::Instance
+      CreationPolicy:
+        ResourceSignal:
+          Timeout: PT45M
+          Count: 1
+      Properties:
+        IamInstanceProfile: aws-opsworks-ec2-role
+        ImageId: !Ref TrialAMIId
+        InstanceType: !Ref TrialInstanceType
+        KeyName: !Ref TrialSSHKey
+        SecurityGroupIds:
+          - Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksLayerSecurityGroups"
+        SourceDestCheck: true
+        SubnetId: !GetAtt TrialSubnetIdAllocatorCustomResource.SubnetId
+        Tags:
+          - Key: Account
+            Value: !Ref AWS::AccountId
+          - Key: Name
+            Value: !Sub "${TrialRoute53DomainNameGenCustomResource.DomainName}.trial-ALFRESCO1"
+          - Key: Allocated
+            Value: false
+          - Key: Stage
+            Value:
+              Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksDeploymentStage"
+          - Key: ExpiryDate
+            Value: !GetAtt TrialRoute53DomainNameGenCustomResource.ExpiryDate
+        UserData:
+          Fn::Base64:
+            Fn::Join:
+              - ''
+              - - !Sub |
+                  #!/bin/bash -x
+                  /usr/bin/easy_install https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz || sleep 10
+                  RESULT=0
+                  TIMEOUT=45
+                  echo "Prepping json file for first chef run"
+                  cd /etc/chef
+                  cat > run-chef-client.json << EOF
+                  {
+                    "name": "localhost",
+                    "artifact-deployer" : {
+                        "awscli" : {
+                            "credentials_databag" :"aws",
+                            "credentials_databag_item" : "salty"
+                        }
+                    },
+                    "resolver" : {
+                        "search" : "alfresco.pri ec2.internal",
+                        "nameservers" : ["8.8.8.8", "8.26.56.26"],
+                        "lock_resolver_conf" : true
+                    },
+                    "hosts" : {
+                        "hostname" : "${TrialRoute53DomainNameGenCustomResource.DomainName}.trial",
+                        "domain" : "alfresco.com",
+                        "host_list" : {
+                            "minislaven1 minislaven1.alfresco.pri" : "10.80.217.144",
+                            "syslogp syslogp.trial-alfresco1 syslogp.trial-alfresco1.alfresco.pri" : "10.0.9.99"
+                        }
+                    },
+                    "salty" : {},
+                    "alfresco" : {
+                        "public_hostname" : "${TrialRoute53DomainNameGenCustomResource.DomainName}.trial.alfresco.com",
+                        "certs" : {
+                          "ssl_databag" : "ssl",
+                          "ssl_databag_item" : "saltydog_com"
+                        }
+                    },
+                    "cwlogs": {
+                      "region": "${AWS::Region}",
+                      "use_gzip_http_content_encoding": false
+                    },
+                    "rsyslog" : {
+                        "server_ip" : "syslogp"
+                    },
+                    "run_list": [
+                        "img-trials::run-chef-client"
+                    ]
+                  }
+                  EOF
+                  echo "File prepped for first chef run."
+                  echo "Running Chef for the first time"
+                  chef-client -z -j run-chef-client.json
+                  RESULT=$?
+                  echo "Current result is $RESULT after initial Chef run"
+                  if [[ "$RESULT" == 0 ]]; then
+                - opsworks_stackid=
+                - Fn::ImportValue: !Sub ${ControlArchitectureName}-OpsWorksStackId
+                - "\n"
+                - "aws opsworks register --stack-id ${opsworks_stackid}"
+                - !Sub " --infrastructure-class ec2 --region ${AWS::Region} --local"
+                - "\n"
+                - !Sub |
+                  else
+                    echo "Chef run failed. Result is $RESULT"
+                    /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
+                    exit $RESULT
+                  fi
+                  if [[ "$RESULT" == 0 ]]; then
+                    echo "Waiting for Share..."
+                    ITERATION=0
+                    COMMAND="curl -s -o /dev/null -I -w %{http_code} 127.0.0.1:8081/share/page"
+                    while HTTPCODE=$($COMMAND); [[ $HTTPCODE != 200 ]];
+                    do
+                      if [[ $ITERATION -eq $TIMEOUT ]]; then
+                        echo "Share timeout after $TIMEOUT minutes."
+                        RESULT=1
+                        break
+                      fi
+                      echo "HTTPCODE=$HTTPCODE Waiting for Share to come up... $((ITERATION++))/$TIMEOUT"
+                      sleep 1m
+                    done
+                  else
+                    echo "Chef run with run-chef-client.json failed. Exiting..."
+                    /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
+                    exit $RESULT
+                  fi
+                  if [[ "$RESULT" == 0 ]]; then
+                    echo "Waiting for Alfresco..."
+                    ITERATION=0
+                    COMMAND="curl -s -o /dev/null -I -w %{http_code} 127.0.0.1:8070"
+                    while HTTPCODE=$($COMMAND); [[ $HTTPCODE != 200 ]];
+                    do
+                      if [[ $ITERATION -eq $TIMEOUT ]]; then
+                        echo "Alfresco timeout after $TIMEOUT minutes."
+                        RESULT=1
+                        break
+                      fi
+                      echo "HTTPCODE=$HTTPCODE Waiting for Alfresco to come up... $((ITERATION++))/$TIMEOUT"
+                      sleep 1m
+                    done
+                  else
+                    echo "Couldnt reach Share within $TIMEOUT minutes. Exiting..."
+                    /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
+                    exit $RESULT
+                  fi
+                  # These commands should probably be Cheffed pas part of AMI creation/config. They currently add 5-7 minutes to the wait time
+                  if [[ "$RESULT" == 0 ]]; then
+                    curl -L -u ${AdminUsername}:${AdminPassword} 'http://${AdminUsername}:${AdminPassword}@localhost:8070/alfresco/service/slingshot/node/search?q=%40name%3A%22Project%20Meeting%20Minutes%22&lang=lucene&store=workspace%3A%2F%2FSpacesStore'
+                    printf "MAILTO=\'\'\n*/5 * * * *\troot\t/usr/local/bin/monitor-services.sh" > /etc/cron.d/monitoring-services.cron
+                  else
+                    echo "Couldnt reach Alfresco within $TIMEOUT minutes. Exiting..."
+                    /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
+                    exit $RESULT
+                  fi
+                  # Register this instance with the correct OpsWorks Layer
+                  if [[ "$RESULT" == 0 ]]; then
+                  # make sure the status is registered before proceeding
+                - " STATUS=$(aws opsworks describe-instances --stack-id ${opsworks_stackid}"
+                - !Sub " --region ${AWS::Region} --query 'Instances[?Hostname==`${TrialRoute53DomainNameGenCustomResource.DomainName}`].Status' --output text)"
+                - "\n"
+                - !Sub |
+                  while [[ "$STATUS" != "registered" ]];
+                  do
+                    sleep 10
+                - "   STATUS=$(aws opsworks describe-instances --stack-id ${opsworks_stackid}"
+                - !Sub " --region ${AWS::Region} --query 'Instances[?Hostname==`${TrialRoute53DomainNameGenCustomResource.DomainName}`].Status' --output text)"
+                - "\n done\n"
+                - " INSTANCEID=$(aws opsworks describe-instances --stack-id ${opsworks_stackid}"
+                - !Sub " --region ${AWS::Region} --query 'Instances[?Hostname==`${TrialRoute53DomainNameGenCustomResource.DomainName}`].InstanceId' --output text)"
+                - "\n"
+                - !Sub "  aws opsworks --region ${AWS::Region} assign-instance --instance-id "
+                - "${INSTANCEID} --layer-ids "
+                - Fn::ImportValue: !Sub ${ControlArchitectureName}-OpsWorksLayerId
+                - "\n"
+                - !Sub |
+                  fi
+                  # send result to cloudformation
+                  echo "RESULT is $RESULT, sending signal to cloudformation"
+                  /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
+    TrialRoute53RecordSetIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - TrialEc2Instance
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+            - Effect: Allow
+              Principal:
+                AWS:
+                  - !Ref SystemsRole
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialRoute53RecordSetLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: TrialRoute53RecordSetAccessPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - sts:AssumeRole
+                  Resource:
+                    - !Ref SystemsRole
+    TrialRoute53RecordSetHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialRoute53RecordSetIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+
+            def handler(event, context):
+              try:
+                sts = boto3.client('sts')
+                role = sts.assume_role(
+                  RoleArn=os.environ['role'],
+                  RoleSessionName=os.environ['name']
+                )
+                print("Role Assumed OK")
+                client = boto3.client(
+                  'route53',
+                  aws_access_key_id=role['Credentials']['AccessKeyId'],
+                  aws_secret_access_key=role['Credentials']['SecretAccessKey'],
+                  aws_session_token=role['Credentials']['SessionToken']
+                )
+                print("Cross account R53 client created OK")
+                action = 'DELETE' if event['RequestType'] == 'Delete' else 'UPSERT'
+                requestData = {
+                  'Changes': [
+                    {
+                      'Action': action,
+                      'ResourceRecordSet': {
+                        'Name': "{}.trial.alfresco.com.".format(os.environ['name']),
+                        'Type': 'A',
+                        'TTL': 300,
+                        'ResourceRecords': [
+                          {
+                            'Value': os.environ['public_ip']
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+                response = client.change_resource_record_sets(
+                  HostedZoneId=os.environ['hosted_zone_id'],
+                  ChangeBatch=requestData
+                )
+                cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            hosted_zone_id: Z2KYYIWHSJMSS1
+            name: !GetAtt TrialRoute53DomainNameGenCustomResource.DomainName
+            public_ip: !GetAtt TrialEc2Instance.PublicIp
+            role: !Ref SystemsRole
+        Handler: index.handler
+        Role: !GetAtt TrialRoute53RecordSetIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    TrialRoute53RecordSetCustomResource:
+      Type: Custom::CreateRecordSet
+      DependsOn:
+        - TrialRoute53RecordSetHandler
+      Properties:
+        ServiceToken: !GetAtt TrialRoute53RecordSetHandler.Arn
+    TrialOpsWorkRegisterHandlerIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - TrialEc2Instance
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialOpsWorksRegisterLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: TrialOpsWorkRegisterHandlerPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:DescribeInstances
+                    - opsworks:DeregisterInstance
+                  Resource:
+                    - "*"
+    TrialOpsWorksRegisterHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialOpsWorkRegisterHandlerIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+
+            def handler(event, context):
+              try:
+                client = boto3.client('opsworks')
+                eventType = event['RequestType']
+                if eventType == 'Create' or eventType == 'Delete':
+                  response = client.describe_instances(
+                    StackId=os.environ['stack_id']
+                  )
+                  data = {}
+                  for instance in response['Instances']:
+                    if instance['Hostname'] == os.environ['hostname']:
+                      print("Instance found - {}".format(instance['InstanceId']))
+                      if eventType == 'Create':
+                        data['InstanceId'] = instance['InstanceId']
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
+                        break
+                      elif eventType == 'Delete':
+                        deregisterResp = client.deregister_instance(
+                          InstanceId=instance['InstanceId']
+                        )
+                        print("Instance deregistered from stack")
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, data)
+                        break
+                      
+                else:
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            hostname: !GetAtt TrialRoute53DomainNameGenCustomResource.DomainName
+            stack_id:
+              Fn::ImportValue: !Sub ${ControlArchitectureName}-OpsWorksStackId
+        Handler: index.handler
+        Role: !GetAtt TrialOpsWorkRegisterHandlerIamRole.Arn
+        Runtime: python2.7
+        Timeout: 30
+    TrialOpsWorksRegisterHandlerCustomResource:
+      Type: Custom::OpsWorksRegister
+      DependsOn:
+        - TrialOpsWorksRegisterHandler
+      Properties:
+        ServiceToken: !GetAtt TrialOpsWorksRegisterHandler.Arn
+    TrialOpsWorksInitialiseInstanceCookbooksIamRole:
+      Type: AWS::IAM::Role
+      DependsOn:
+        - TrialEc2Instance
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: 2012-10-17
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+                  - events.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Policies:
+          - PolicyName: TrialOpsWorksInitInstanceCookbookLoggingPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogGroup
+                    - logs:CreateLogStream
+                    - logs:PutLogEvents
+                  Resource:
+                    - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
+          - PolicyName: TrialOpsWorksInitInstanceCookbookPolicy
+            PolicyDocument:
+              Version: 2012-10-17
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - opsworks:CreateDeployment
+                  Resource:
+                    - "*"
+    TrialOpsWorksInitInstanceCookbookHandler:
+      Type: AWS::Lambda::Function
+      DependsOn:
+        - TrialOpsWorksInitialiseInstanceCookbooksIamRole
+      Properties:
+        Code:
+          ZipFile: |
+            from __future__ import print_function
+            import cfnresponse
+            import os
+            import boto3
+
+            def handler(event, context):
+              try:
+                if event['RequestType'] == 'Create':
+                  client = boto3.client('opsworks')
+                  response = client.create_deployment(
+                    StackId=os.environ['stack_id'],
+                    InstanceIds=[
+                      os.environ['instance_id']
+                    ],
+                    Command={
+                      'Name': 'update_custom_cookbooks'
+                    },
+                    Comment="Updating cookbooks on {}".format(os.environ['instance_id'])
+                  )
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, response)
+                else:
+                  print("Event is {}, doing nothing".format(event['RequestType']))
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+              except Exception as err:
+                print("{}\n".format(err))
+                cfnresponse.send(event, context, cfnresponse.FAILED, {})
+        Environment:
+          Variables:
+            stack_id:
+              Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksStackId"
+            instance_id: !GetAtt TrialOpsWorksRegisterHandlerCustomResource.InstanceId
+        Handler: index.handler
+        Role: !GetAtt TrialOpsWorksInitialiseInstanceCookbooksIamRole.Arn
+        Runtime: python2.7
+        Timeout: 10
+    TrialOpsWorksInitInstanceCookbookCustomResource:
+      Type: Custom::OpsWorksCookbookInstaller
+      DependsOn:
+        - TrialOpsWorksInitInstanceCookbookHandler
+      Properties:
+        ServiceToken: !GetAtt TrialOpsWorksInitInstanceCookbookHandler.Arn
+  Outputs:
+    Type:
+      Description: The type of stack this is.
+      Value: Trial
+    InstanceId:
+      Description: The id of the EC2 instance created by this stack
+      Value: !Ref TrialEc2Instance
+    PublicIp:
+      Description: The Public IP of the EC2 instance. Handy for quick ssh'ing
+      Value: !GetAtt TrialEc2Instance.PublicIp
+    Url:
+      Description: The Public Url that allows users access
+      Value: !Sub "https://${TrialRoute53DomainNameGenCustomResource.DomainName}.trial.alfresco.com"
+    Stage:
+      Description: The environment this stack has been deployed to; test or prod
+      Value:
+        Fn::ImportValue: !Sub "${ControlArchitectureName}-OpsWorksDeploymentStage"
+    

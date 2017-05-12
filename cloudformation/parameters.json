@@ -1,0 +1,22 @@
+[
+  {
+    "ParameterKey":"APIDomainName",
+    "ParameterValue": "@@STACK_NAME@@.trial.alfresco.com"
+  },
+  {
+    "ParameterKey":"CreatedBy",
+    "ParameterValue": "Bamboo"
+  },
+  {
+    "ParameterKey":"AdminUsername",
+    "ParameterValue":"@@USERNAME@@"
+  },
+  {
+    "ParameterKey":"AdminPassword",
+    "ParameterValue":"@@PASSWORD@@"
+  },
+  {
+    "ParameterKey":"MarketoSecret",
+    "ParameterValue":"@@MARKETO_SECRET@@"
+  }
+]
