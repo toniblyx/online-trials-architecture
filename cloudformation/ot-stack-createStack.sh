@@ -5,15 +5,16 @@
 source common.func
 
 usage() {
-  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <uname> <ami_id>"
+  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <ami_id>"
   exit 1
 }
 
-if [ $# -lt 7 ]; then
+if [ $# -lt 4 ]; then
   usage
 else
   TEMPLATE_NAME="online-trial-stack.yaml"
   S3_TEMPLATE_NAME="$3.yaml"
+  S3_BUCKET='cfn-templates-alfresco-onlinetrials'
   STACK_NAME=$(echo -n $3 | tr / - | awk '{print tolower($0)}')
   AMI_ID=$4
 
@@ -33,12 +34,11 @@ else
   # Copy the template to S3
   separator
   logInfo "Copy Cloudformation Template $TEMPLATE_NAME to S3 Bucket s3://$S3_BUCKET/"
-  aws s3 mb s3://$S3_BUCKET
   aws s3 cp $TEMPLATE_NAME s3://$S3_BUCKET/$S3_TEMPLATE_NAME
 
   # Replace placeholders
   separator
-  logInfo "Replacing placeholders in parameters.json"
+  logInfo "Replacing placeholders in ot-stack-parameters.json"
   sed -i'.bak' "
       s/@@USERNAME@@/$USER_NAME/g;
       s/@@PASSWORD@@/$USER_PWD/g;
@@ -80,6 +80,6 @@ else
         monitorStatus "$STATUS"
         sleep 10
         LOOP_COUNTER=`expr $LOOP_COUNTER + 1`
-      fi      
+      fi
   done
 fi

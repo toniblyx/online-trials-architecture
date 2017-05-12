@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey":"AdminUsername",
+    "ParameterValue":"admin"
+  },
+  {
+    "ParameterKey":"AdminPassword",
+    "ParameterValue":"alfrescodevops"
+  },
+  {
+    "ParameterKey":"TrialAMIId",
+    "ParameterValue":"ami-fd5425eb"
+  }
+]
