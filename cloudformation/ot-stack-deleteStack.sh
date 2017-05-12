@@ -18,14 +18,6 @@ else
     export AWS_ACCESS_KEY_ID=$1
     export AWS_SECRET_ACCESS_KEY=$2
 
-    # Temp workaround until bug fix
-    separator
-    USAGE_PLAN_ID=$(aws cloudformation describe-stack-resources \
-    --stack-name $STACK_NAME \
-    --query "StackResources[?ResourceType == 'AWS::ApiGateway::UsagePlan'].PhysicalResourceId" \
-    --output text)
-    logInfo "Usage plan ID is $USAGE_PLAN_ID"
-
     separator
     logInfo "Deleting the stack $STACK_NAME"
 
@@ -55,10 +47,7 @@ else
             monitorStatus $STATUS
         else
             logInfo "Stack successfully deleted"
-            # Part 2 of workaround
             separator
-            logInfo "Deleting usage plan $USAGE_PLAN_ID"
-            aws apigateway delete-usage-plan --usage-plan-id $USAGE_PLAN_ID
             exit 0
         fi
         sleep 10

@@ -5,11 +5,11 @@
 source common.func
 
 usage() {
-  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <ami_id>"
+  echo "Usage: ot-stack-createStack.sh <access_key_id> <secret_access_key> <stack_name> <ami_id> <user_name> <user_password>"
   exit 1
 }
 
-if [ $# -lt 4 ]; then
+if [ $# -lt 6 ]; then
   usage
 else
   TEMPLATE_NAME="online-trial-stack.yaml"
@@ -28,8 +28,8 @@ else
   # Some logging
   printVarSummary
 
-  USER_NAME='admin'
-  USER_PWD='alfrescodevops'
+  USER_NAME=$5
+  USER_PWD=$6
 
   # Copy the template to S3
   separator
