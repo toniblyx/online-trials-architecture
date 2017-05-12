@@ -22,5 +22,9 @@
   {
     "ParameterKey":"MarketoSecret",
     "UsePreviousValue": true
+  },
+  {
+    "ParameterKey":"Stage",
+    "UsePreviousValue":true
   }
 ]
