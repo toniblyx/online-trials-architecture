@@ -35,7 +35,7 @@
     TrialAMIId:
       Description: The AMI Id of the Trial Image
       Type: AWS::EC2::Image::Id
-      Default: ami-04c8aa12
+      Default: ami-fd5425eb
       MinLength: 1
     TrialInstanceType:
       Description: The type of EC2 instance to deploy the AMI to
@@ -354,8 +354,6 @@
                   fi
                   # These commands should probably be Cheffed pas part of AMI creation/config. They currently add 5-7 minutes to the wait time
                   if [[ "$RESULT" == 0 ]]; then
-                    systemctl set-property snortd CPUShares=10 MemoryLimit=256M
-                    /usr/local/bin/reload-snort.sh
                     curl -L -u ${AdminUsername}:${AdminPassword} 'http://${AdminUsername}:${AdminPassword}@localhost:8070/alfresco/service/slingshot/node/search?q=%40name%3A%22Project%20Meeting%20Minutes%22&lang=lucene&store=workspace%3A%2F%2FSpacesStore'
                     printf "MAILTO=\'\'\n*/5 * * * *\troot\t/usr/local/bin/monitor-services.sh" > /etc/cron.d/monitoring-services.cron
                   else
