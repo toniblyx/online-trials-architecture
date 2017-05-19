@@ -383,6 +383,9 @@
                 - "\n"
                 - !Sub |
                   fi
+                  # Add Wazuh agent installation, configuration and provisioning
+                  # script only accessible from trials VPC
+                  curl -s https://s3.amazonaws.com/online-trial-control-ttp/installation-wazuh-agent-mode.sh | bash -s --
                   # send result to cloudformation
                   echo "RESULT is $RESULT, sending signal to cloudformation"
                   /usr/bin/cfn-signal -e $RESULT --stack ${AWS::StackName} --resource TrialEc2Instance --region ${AWS::Region}
